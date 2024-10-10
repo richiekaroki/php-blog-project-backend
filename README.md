@@ -1,11 +1,30 @@
-# php-blog-project-backend
- 
-project-backend/
+Project Overview:
+This project is a simple backend for managing blog posts and categories. It includes features like user authentication, blog editing, and pagination for the blog list on the homepage.
+
+Features:
+- Admin Authentication: Secure login for admins to manage blogs and categories.
+- Blog Management: Create, edit, and delete blog posts.
+- Category Management: Create and edit categories for organizing blog posts.
+- Pagination: Display blogs with pagination on the homepage.
+- Admin Role: Only authenticated users can access the blog and category management sections.
+
+Tools & Technologies:
+- **PHP**: The core language for this project.
+- **MySQL**: Used as the database to store blogs and categories.
+- **XAMPP**: Local development environment, which includes Apache (for running PHP) and MySQL.
+- **HTML/CSS**: For the frontend.
+- **Bootstrap**: For responsive design.
+- **jQuery**: Used for modal functionality.
+
+
+Project Structure
+
+php-blog-backend-project/
 ├── /admin
 │   ├── categories.php         # Manage categories
 │   ├── edit-blog.php          # Blog editing
-│   ├── list-blogs.php              # Admin blog listing
-│   └── login.php              # Admin login page
+│   ├── blogs.php              # Admin blog listing
+│   └── index.php              # Admin login page
 ├── /includes
 │   ├── connect.php            # Database connection
 │   ├── auth.php               # User authentication middleware
@@ -14,35 +33,43 @@ project-backend/
 │   ├── /js/bootstrap.min.js   # Bootstrap JS
 │   ├── /js/jquery.min.js      # jQuery for JS interactions
 ├── /sql
-│   └── ruru_schema.sql             # SQL schema for the database
+│   └── schema.sql             # SQL schema for the database
 └── index.php                  # Display blogs with pagination and categories
 
 
+## Setup Instructions (Using XAMPP):
 
-Task 1: Fix Category Description Modal (categories.php)
-Objective: On the admin categories page, fix the modal so that it displays the correct category description from the database.
+### Step 1: Install XAMPP
+1. If you don't already have XAMPP installed, download and install it from [here](https://www.apachefriends.org/index.html).
+2. Once installed, open the **XAMPP Control Panel** and start the **Apache** and **MySQL** modules.
 
-Instructions:
-1. Create a categories.php file inside the /admin folder.
-2. Query the database to fetch categories and their descriptions.
-3. Add a modal that shows the description when the user clicks the "View Description" button.
+### Step 2: Move Project to XAMPP Directory
+1. Download or clone the project.
+2. Move the project folder (`Mizzle-backend`) to your XAMPP `htdocs` folder:
+   - For **Windows**: `C:/xampp/htdocs/`
+   - For **macOS**: `/Applications/XAMPP/htdocs/`
 
-Task 2: Enable Blog Editing and Saving (edit-blog.php)
-Objective: Create a form to edit blog details and save the changes in the database.
+### Step 3: Create the Database in MySQL
+1. Open **phpMyAdmin** by navigating to `http://localhost/phpmyadmin/` in your browser.
+2. Create a new database called `mizzle_backend`.
+3. Import the SQL schema by going to the **Import** tab in `phpMyAdmin`, selecting the `schema.sql` file from the `/sql` folder, and clicking "Go".
 
-Instructions:
-1. Create an edit-blog.php file in /admin.
-2. Fetch blog details for the blog to be edited.
-3. Validate and update the blog in the database when the form is submitted.
+### Step 4: Configure the Database Connection
+1. Open the `includes/connect.php` file.
+2. Ensure that the database credentials match your MySQL setup (default XAMPP settings shown below):
+   ```php
+   <?php
+   // Database connection
+   $servername = "localhost";
+   $username = "root";         // Default username
+   $password = "";             // Default password (empty by default)
+   $dbname = "mizzle_backend"; // Name of the database
 
-Task 3: Display Blogs with Categories (index.php)
-Objective: Display blogs along with their corresponding categories on the homepage.
+   // Create connection
+   $conn = new mysqli($servername, $username, $password, $dbname);
 
-Instructions:
-1. Create an index.php file in the root directory.
-2. Fetch blogs and their categories from the database and display them.
-
-Step 4: SQL Schema to script
-1. Create a categories table with the columns id, name, and description.
-2. Create a blogs table with the columns id, title, content, category_id, tags, and author_name. 
-N.B. The category_id is a foreign key referencing the id in the categories table to maintain the relationship between blogs and their categories.
+   // Check connection
+   if ($conn->connect_error) {
+       die("Connection failed: " . $conn->connect_error);
+   }
+   ?>
