@@ -24,7 +24,7 @@ php-blog-backend-project/
 │   ├── categories.php         # Manage categories
 │   ├── edit-blog.php          # Blog editing
 │   ├── blogs.php              # Admin blog listing
-│   └── index.php              # Admin login page
+│   └── login.php              # Admin login page
 ├── /includes
 │   ├── connect.php            # Database connection
 │   ├── auth.php               # User authentication middleware
@@ -45,13 +45,13 @@ php-blog-backend-project/
 
 ### Step 2: Move Project to XAMPP Directory
 1. Download or clone the project.
-2. Move the project folder (`project-backend`) to your XAMPP `htdocs` folder:
+2. Move the project folder (`project-backend`) to your XAMPP `htdocs` folder: E.g.
    - For **Windows**: `C:/xampp/htdocs/`
    - For **macOS**: `/Applications/XAMPP/htdocs/`
 
 ### Step 3: Create the Database in MySQL
 1. Open **phpMyAdmin** by navigating to `http://localhost/phpmyadmin/` in your browser.
-2. Create a new database called `mizzle_backend`.
+2. Create a new database called `projectname_backend`.
 3. Import the SQL schema by going to the **Import** tab in `phpMyAdmin`, selecting the `schema.sql` file from the `/sql` folder, and clicking "Go".
 
 ### Step 4: Configure the Database Connection
