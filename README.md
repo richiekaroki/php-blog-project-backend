@@ -63,7 +63,7 @@ php-blog-backend-project/
    $servername = "localhost";
    $username = "root";         // Default username
    $password = "";             // Default password (empty by default)
-   $dbname = "mizzle_backend"; // Name of the database
+   $dbname = "projctname_backend"; // Name of the database
 
    // Create connection
    $conn = new mysqli($servername, $username, $password, $dbname);
@@ -73,3 +73,19 @@ php-blog-backend-project/
        die("Connection failed: " . $conn->connect_error);
    }
    ?>
+
+
+Additional Future Features:
+If you'd like to expand the project, consider implementing the following features:
+
+Search Functionality:
+Add a search bar to the blog listing page that allows users to filter blog posts by title, category, or tags.
+
+Admin Registration:
+Build a feature that allows new admins to register on the platform. Ensure that password hashing is implemented for better security.
+
+User Roles:
+Extend the authentication system to include different user roles (e.g., editor, admin) with different permission levels.
+
+Blog Tags:
+Add a feature for categorizing blog posts using tags and allow users to search by tag.
