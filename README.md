@@ -45,7 +45,7 @@ php-blog-backend-project/
 
 ### Step 2: Move Project to XAMPP Directory
 1. Download or clone the project.
-2. Move the project folder (`Mizzle-backend`) to your XAMPP `htdocs` folder:
+2. Move the project folder (`project-backend`) to your XAMPP `htdocs` folder:
    - For **Windows**: `C:/xampp/htdocs/`
    - For **macOS**: `/Applications/XAMPP/htdocs/`
 
