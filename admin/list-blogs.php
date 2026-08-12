@@ -1,45 +1,46 @@
 <?php
-// index.php - Display blogs with pagination
+// admin/list-blogs.php - Blog list with PDO pagination
 
-require 'includes/connect.php';
+require '../includes/connect.php';
 
+// Pagination settings
 $limit = 5;  // Number of blogs per page
-$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$page = max(1, (int)($_GET['page'] ?? 1));  // Validate page number
 $offset = ($page - 1) * $limit;
 
-// Fetch blogs with pagination
+// Fetch blogs with PDO prepared statement (LIMIT/OFFSET with validated integers)
 $sql = "SELECT blogs.id, blogs.title, blogs.content, categories.name AS category_name
         FROM blogs
         JOIN categories ON blogs.category_id = categories.id
-        LIMIT $limit OFFSET $offset";
-$result = $conn->query($sql);
+        LIMIT ? OFFSET ?";
+$stmt = $pdo->prepare($sql);
+$stmt->execute([$limit, $offset]);
+$result = $stmt->fetchAll();
 
 // Get total number of blogs for pagination
 $count_sql = "SELECT COUNT(id) AS total FROM blogs";
-$count_result = $conn->query($count_sql);
-$total_blogs = $count_result->fetch_assoc()['total'];
+$count_stmt = $pdo->query($count_sql);
+$total_blogs = $count_stmt->fetch()['total'];
 $total_pages = ceil($total_blogs / $limit);
 ?>
 
 <!DOCTYPE html>
 <html>
-
 <head>
     <title>Blogs</title>
     <link rel="stylesheet" href="assets/css/bootstrap.min.css">
 </head>
-
 <body>
     <div class="container">
         <h1>Blog List</h1>
-        <?php while ($row = $result->fetch_assoc()): ?>
+        <?php foreach ($result as $row): ?>
         <div class="blog-post">
-            <h2><?php echo $row['title']; ?></h2>
-            <p><strong>Category: </strong><?php echo $row['category_name']; ?></p>
-            <p><?php echo $row['content']; ?></p>
+            <h2><?php echo htmlspecialchars($row['title']); ?></h2>
+            <p><strong>Category: </strong><?php echo htmlspecialchars($row['category_name']); ?></p>
+            <p><?php echo htmlspecialchars($row['content']); ?></p>
         </div>
         <hr>
-        <?php endwhile; ?>
+        <?php endforeach; ?>
 
         <!-- Pagination Links -->
         <nav aria-label="Page navigation">
@@ -61,5 +62,4 @@ $total_pages = ceil($total_blogs / $limit);
         </nav>
     </div>
 </body>
-
 </html>

@@ -1,0 +1,45 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Environment variables
+/.env
+
+# Runtime generated files
+/uploads/*
+/logs/*
+/*.log
+
+# Database
+/*.sqlite3
+*.db
+
+# Build artifacts
+/dist/
+/build/
+
+# Herd specific
+/.config
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# PHP specific
+composer.lock
+composer.phar
+
+# Test coverage
+coverage/
+*.coverage
+
+# Herd share temporary links
+herd-*
+
+# Temp files
+query
+
+# Screenshots
+screencapture-*.png

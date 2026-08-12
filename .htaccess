@@ -1,0 +1,7 @@
+RewriteEngine On
+
+# Handle API requests
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+
+# Prevent directory listing
+Options -Indexes

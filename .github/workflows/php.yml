@@ -1,0 +1,63 @@
+name: PHP CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --optimize-autoloader
+
+      - name: Install PHPUnit
+        run: composer install --dev --no-interaction
+
+      - name: Run Tests
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: mizzle_backend
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: vendor/bin/phpunit tests/
+
+      - name: Code Sniff (PHP CodeSniffer)
+        if: false
+        run: |
+          composer global require phpunit/phpunit 2>/dev/null || true
+          # Skipped for simplicity - would need php-cs-fixer installed
+
+      - name: Lint PHP Files
+        run: php -l $(find . -name '*.php' | grep -v vendor | grep -v '.github')
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Herd Deploy (Placeholder)
+        run: echo "Deploy to Herd would happen here"
+        # In production, would use Herd API or manual deployment
