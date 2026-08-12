@@ -1,31 +1,32 @@
 <?php
-// connect.php - PDO PostgreSQL connection
+// connect.php - PDO PostgreSQL connection (supports Neon, Render, local)
 
-// Support both Render DATABASE_URL and local .env
-if (isset($_ENV['DATABASE_URL']) || isset(getenv()['DATABASE_URL'])) {
-    // Render provides DATABASE_URL: postgres://user:password@host:port/dbname
-    $dbUrl = parse_url(getenv('DATABASE_URL') ?: $_ENV['DATABASE_URL']);
+// Check for DATABASE_URL (Neon, Render, or any cloud provider)
+$dbUrl = null;
+if (isset($_ENV['DATABASE_URL'])) {
+    $dbUrl = parse_url($_ENV['DATABASE_URL']);
+} elseif (getenv('DATABASE_URL')) {
+    $dbUrl = parse_url(getenv('DATABASE_URL'));
+}
+
+if ($dbUrl) {
     $host = $dbUrl['host'] ?? '127.0.0.1';
     $port = $dbUrl['port'] ?? '5432';
     $dbname = ltrim($dbUrl['path'], '/');
     $username = $dbUrl['user'] ?? 'postgres';
     $password = $dbUrl['pass'] ?? '';
+    // Neon requires SSL
+    $sslmode = 'require';
 } else {
-    // Load from .env (local development)
+    // Local .env
     $env = [];
     $envFile = __DIR__.'/../.env';
     if (file_exists($envFile)) {
-        $lines = file($envFile);
-        foreach ($lines as $line) {
+        foreach (file($envFile) as $line) {
             if (trim($line) === '' || trim($line)[0] === '#') continue;
             $parts = explode('=', $line, 2);
             if (count($parts) === 2) {
-                $key = trim($parts[0]);
-                $value = trim($parts[1]);
-                if (strlen($value) >= 2 && $value[0] === '"' && $value[strlen($value)-1] === '"') {
-                    $value = substr($value, 1, -1);
-                }
-                $env[$key] = $value;
+                $env[trim($parts[0])] = trim(trim($parts[1]), '"');
             }
         }
     }
@@ -34,9 +35,10 @@ if (isset($_ENV['DATABASE_URL']) || isset(getenv()['DATABASE_URL'])) {
     $dbname = $env['DB_DATABASE'] ?? 'mizzle_backend';
     $username = $env['DB_USERNAME'] ?? 'postgres';
     $password = $env['DB_PASSWORD'] ?? '';
+    $sslmode = 'prefer';
 }
 
-$dsn = "pgsql:host=$host;port=$port;dbname=$dbname";
+$dsn = "pgsql:host=$host;port=$port;dbname=$dbname;sslmode=$sslmode";
 
 try {
     $pdo = new PDO($dsn, $username, $password, [
