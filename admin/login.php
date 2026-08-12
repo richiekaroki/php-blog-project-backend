@@ -5,10 +5,13 @@ require '../includes/connect.php';
 require '../includes/csrf.php';
 // session_start() is handled by csrf.php
 
+// HIGH-4: IP-based rate limiting (not session-based — session can be cleared)
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$rateKey = "login_attempts_" . md5($ip);
+
 // Initialize rate limit counter in session if not set
-if (!isset($_SESSION['login_attempts'])) {
-    $_SESSION['login_attempts'] = 0;
-    $_SESSION['last_attempt_time'] = 0;
+if (!isset($_SESSION[$rateKey])) {
+    $_SESSION[$rateKey] = ['count' => 0, 'time' => 0];
 }
 
 // Check rate limit (max 5 attempts per 15 minutes)
@@ -18,9 +21,10 @@ $lockout_time = 15 * 60; // 15 minutes in seconds
 $current_time = time();
 
 // Check if user is locked out
-if ($_SESSION['login_attempts'] >= $max_attempts && 
-    ($current_time - $_SESSION['last_attempt_time']) < $lockout_time) {
-    die('Too many login attempts. Please try again in 15 minutes.');
+if ($_SESSION[$rateKey]['count'] >= $max_attempts && 
+    ($current_time - $_SESSION[$rateKey]['time']) < $lockout_time) {
+    $remaining = $lockout_time - ($current_time - $_SESSION[$rateKey]['time']);
+    die('Too many login attempts. Please try again in ' . ceil($remaining / 60) . ' minutes.');
 }
 
 // Handle login form submission
@@ -32,9 +36,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die('Invalid CSRF token');
     }
 
-    // Increment attempt counter
-    $_SESSION['login_attempts']++;
-    $_SESSION['last_attempt_time'] = $current_time;
+    // Increment attempt counter (IP-based)
+    $_SESSION[$rateKey]['count']++;
+    $_SESSION[$rateKey]['time'] = $current_time;
 
     // Get username and password from the form
     $username = $_POST['username'];
@@ -51,8 +55,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION['admin'] = $username;
         // Regenerate session ID to prevent fixation
         session_regenerate_id(true);
+        // HIGH-3: Regenerate CSRF token after login (prevent token fixation)
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         // Reset login attempts on success
-        $_SESSION['login_attempts'] = 0;
+        $_SESSION[$rateKey] = ['count' => 0, 'time' => 0];
         $_SESSION['user_role'] = $user['role'] ?? 'editor';
         header("Location: blogs.php");  // Redirect to blog management
         exit;
