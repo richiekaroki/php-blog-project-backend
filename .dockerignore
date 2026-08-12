@@ -1,0 +1,14 @@
+node_modules/
+vendor/
+.env
+.git/
+.github/
+tests/
+.idea/
+.vscode/
+*.md
+*.log
+query
+screencapture-*.png
+render.yaml
+docker-compose.yml
