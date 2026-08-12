@@ -1,24 +1,35 @@
 <?php
-// connect.php - PDO PostgreSQL connection (supports Neon, Render, local)
+// connect.php - PDO PostgreSQL connection
 
-// Check for DATABASE_URL (Neon, Render, or any cloud provider)
-$dbUrl = null;
-if (isset($_ENV['DATABASE_URL'])) {
-    $dbUrl = parse_url($_ENV['DATABASE_URL']);
-} elseif (getenv('DATABASE_URL')) {
-    $dbUrl = parse_url(getenv('DATABASE_URL'));
-}
+// Try multiple ways to get DATABASE_URL (Docker, PHP-FPM, CLI)
+$dbUrlRaw = $_SERVER['DATABASE_URL'] ?? $_ENV['DATABASE_URL'] ?? getenv('DATABASE_URL') ?: null;
 
-if ($dbUrl) {
+// Also check if individual DB_* vars are set (Render/Neon env vars)
+$dbHost = $_SERVER['DB_HOST'] ?? $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: null;
+$dbPort = $_SERVER['DB_PORT'] ?? $_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: null;
+$dbName = $_SERVER['DB_DATABASE'] ?? $_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: null;
+$dbUser = $_SERVER['DB_USERNAME'] ?? $_ENV['DB_USERNAME'] ?? getenv('DB_USERNAME') ?: null;
+$dbPass = $_SERVER['DB_PASSWORD'] ?? $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: null;
+
+if ($dbUrlRaw) {
+    // Parse DATABASE_URL: postgres://user:password@host:port/dbname?sslmode=require
+    $dbUrl = parse_url($dbUrlRaw);
     $host = $dbUrl['host'] ?? '127.0.0.1';
     $port = $dbUrl['port'] ?? '5432';
     $dbname = ltrim($dbUrl['path'], '/');
     $username = $dbUrl['user'] ?? 'postgres';
     $password = $dbUrl['pass'] ?? '';
-    // Neon requires SSL
+    $sslmode = 'require';
+} elseif ($dbHost) {
+    // Individual DB_* vars set
+    $host = $dbHost;
+    $port = $dbPort ?? '5432';
+    $dbname = $dbName ?? 'mizzle_backend';
+    $username = $dbUser ?? 'postgres';
+    $password = $dbPass ?? '';
     $sslmode = 'require';
 } else {
-    // Local .env
+    // Local .env fallback
     $env = [];
     $envFile = __DIR__.'/../.env';
     if (file_exists($envFile)) {

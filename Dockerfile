@@ -26,6 +26,9 @@ COPY . .
 # Install dependencies (no dev for production)
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
+# Copy custom PHP-FPM config (clear_env = no)
+COPY php-fpm.conf /usr/local/etc/php-fpm.d/zz-custom.conf
+
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
