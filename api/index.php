@@ -5,6 +5,8 @@ header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
 
 // Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -17,6 +19,38 @@ require '../includes/connect.php';
 
 // Parse the request - supports both path-based and query string routing
 $method = $_SERVER['REQUEST_METHOD'];
+
+// --- CRITICAL-1: Authentication for write operations ---
+$writeMethods = ['POST', 'PUT', 'DELETE'];
+if (in_array($method, $writeMethods)) {
+    session_start();
+    if (!isset($_SESSION['admin'])) {
+        sendResponse(401, ['error' => 'Authentication required for write operations']);
+    }
+}
+
+// --- CRITICAL-2: Rate limiting (100 requests per minute per IP) ---
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$rateFile = sys_get_temp_dir() . '/api_rate_' . md5($ip);
+$rateData = ['count' => 0, 'window' => time()];
+
+if (file_exists($rateFile)) {
+    $stored = json_decode(file_get_contents($rateFile), true);
+    if ($stored && (time() - $stored['window']) < 60) {
+        $rateData = $stored;
+        $rateData['count']++;
+    } else {
+        $rateData = ['count' => 1, 'window' => time()];
+    }
+} else {
+    $rateData = ['count' => 1, 'window' => time()];
+}
+
+file_put_contents($rateFile, json_encode($rateData));
+
+if ($rateData['count'] > 100) {
+    sendResponse(429, ['error' => 'Rate limit exceeded. Max 100 requests per minute.']);
+}
 
 // Try path-based routing first: /api/blogs/1
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -58,7 +92,8 @@ try {
             sendResponse(404, ['error' => 'Endpoint not found', 'available' => ['/api/blogs', '/api/categories', '/api/health']]);
     }
 } catch (Exception $e) {
-    sendResponse(500, ['error' => 'Internal server error', 'message' => $e->getMessage()]);
+    error_log('API Error: ' . $e->getMessage());
+    sendResponse(500, ['error' => 'Internal server error']);
 }
 
 /**
@@ -117,12 +152,15 @@ function handleBlogs($method, $id, $pdo) {
             break;
             
         case 'POST':
-            // Create new blog
+            // Create new blog — CRITICAL-3: whitelist allowed fields
             $data = json_decode(file_get_contents('php://input'), true);
             
             if (!$data || empty($data['title']) || empty($data['content'])) {
                 sendResponse(400, ['error' => 'Title and content are required']);
             }
+            
+            $allowed = ['title', 'content', 'category_id', 'image'];
+            $data = array_intersect_key($data, array_flip($allowed));
             
             $title = $data['title'];
             $content = $data['content'];
@@ -147,6 +185,10 @@ function handleBlogs($method, $id, $pdo) {
             if (!$data) {
                 sendResponse(400, ['error' => 'Invalid JSON data']);
             }
+            
+            // CRITICAL-3: whitelist allowed fields
+            $allowed = ['title', 'content', 'image', 'category_id'];
+            $data = array_intersect_key($data, array_flip($allowed));
             
             // Check if blog exists
             $stmt = $pdo->prepare("SELECT id FROM blogs WHERE id = ?");
@@ -240,12 +282,15 @@ function handleCategories($method, $id, $pdo) {
             break;
             
         case 'POST':
-            // Create new category
+            // Create new category — CRITICAL-3: whitelist allowed fields
             $data = json_decode(file_get_contents('php://input'), true);
             
             if (!$data || empty($data['name'])) {
                 sendResponse(400, ['error' => 'Name is required']);
             }
+            
+            $allowed = ['name', 'description'];
+            $data = array_intersect_key($data, array_flip($allowed));
             
             $name = $data['name'];
             $description = $data['description'] ?? '';
@@ -268,6 +313,10 @@ function handleCategories($method, $id, $pdo) {
             if (!$data) {
                 sendResponse(400, ['error' => 'Invalid JSON data']);
             }
+            
+            // CRITICAL-3: whitelist allowed fields
+            $allowed = ['name', 'description'];
+            $data = array_intersect_key($data, array_flip($allowed));
             
             // Check if category exists
             $stmt = $pdo->prepare("SELECT id FROM categories WHERE id = ?");
