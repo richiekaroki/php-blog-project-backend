@@ -2,6 +2,7 @@
 // post.php - Display single blog post
 
 require 'includes/connect.php';
+require 'includes/headers.php';
 
 // Get post ID
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;

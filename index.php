@@ -2,6 +2,7 @@
 // index.php - Blog homepage with pagination, search, category filtering
 
 require 'includes/connect.php';
+require 'includes/headers.php';
 
 // --- Pagination, Search, Category Filter ---
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
