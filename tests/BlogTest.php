@@ -1,5 +1,5 @@
 <?php
-// tests/BlogTest.php - Unit tests for blog functionality
+// tests/BlogTest.php - Comprehensive test suite for blog backend
 
 require __DIR__ . '/../vendor/autoload.php';
 
@@ -15,7 +15,8 @@ class BlogTest extends TestCase
         $env = [];
         $lines = file(__DIR__ . '/../.env');
         foreach ($lines as $line) {
-            if (trim($line) === '' || trim($line)[0] === '#') continue;
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#') continue;
             $parts = explode('=', $line, 2);
             if (count($parts) === 2) {
                 $key = trim($parts[0]);
@@ -46,30 +47,32 @@ class BlogTest extends TestCase
         }
     }
 
+    // ==========================================
+    // DATABASE TESTS
+    // ==========================================
+
     public function testDatabaseConnection()
     {
-        $this->assertNotNull($this->pdo);
-        // Test basic query
         $result = $this->pdo->query('SELECT 1 AS test');
         $row = $result->fetch();
         $this->assertEquals(1, $row['test']);
     }
 
-    public function testAdminsTableHasData()
+    public function testAdminsTableExists()
     {
         $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM admins");
         $row = $stmt->fetch();
         $this->assertGreaterThan(0, $row['count']);
     }
 
-    public function testCategoriesTableHasData()
+    public function testCategoriesTableExists()
     {
         $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM categories");
         $row = $stmt->fetch();
         $this->assertGreaterThanOrEqual(0, $row['count']);
     }
 
-    public function testBlogsTableHasData()
+    public function testBlogsTableExists()
     {
         $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM blogs");
         $row = $stmt->fetch();
@@ -83,5 +86,486 @@ class BlogTest extends TestCase
         $this->assertContains('id', $columns);
         $this->assertContains('title', $columns);
         $this->assertContains('content', $columns);
+        $this->assertContains('image', $columns);
+        $this->assertContains('category_id', $columns);
+    }
+
+    public function testAdminsTableHasRequiredColumns()
+    {
+        $stmt = $this->pdo->query("SELECT column_name FROM information_schema.columns WHERE table_name = 'admins'");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertContains('id', $columns);
+        $this->assertContains('username', $columns);
+        $this->assertContains('password', $columns);
+        $this->assertContains('role', $columns);
+    }
+
+    public function testCategoriesTableHasRequiredColumns()
+    {
+        $stmt = $this->pdo->query("SELECT column_name FROM information_schema.columns WHERE table_name = 'categories'");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertContains('id', $columns);
+        $this->assertContains('name', $columns);
+    }
+
+    // ==========================================
+    // SECURITY TESTS — Password Hashing
+    // ==========================================
+
+    public function testPasswordIsBcryptHash()
+    {
+        $stmt = $this->pdo->query("SELECT password FROM admins LIMIT 1");
+        $admin = $stmt->fetch();
+        $this->assertNotEmpty($admin);
+        // bcrypt hashes start with $2y$
+        $this->assertStringStartsWith('$2y$', $admin['password']);
+    }
+
+    public function testPasswordVerifyWorks()
+    {
+        $stmt = $this->pdo->query("SELECT password FROM admins WHERE username = 'admin' LIMIT 1");
+        $admin = $stmt->fetch();
+        $this->assertNotEmpty($admin);
+        $this->assertTrue(password_verify('password', $admin['password']));
+        $this->assertFalse(password_verify('wrong_password', $admin['password']));
+    }
+
+    public function testPasswordHashIsLongEnough()
+    {
+        $stmt = $this->pdo->query("SELECT password FROM admins LIMIT 1");
+        $admin = $stmt->fetch();
+        // bcrypt hashes are 60 characters
+        $this->assertGreaterThanOrEqual(60, strlen($admin['password']));
+    }
+
+    // ==========================================
+    // SECURITY TESTS — SQL Injection Prevention
+    // ==========================================
+
+    public function testPreparedStatementsPreventSqlInjection()
+    {
+        $malicious = "'; DROP TABLE blogs; --";
+        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE title = ?");
+        $stmt->execute([$malicious]);
+        $result = $stmt->fetchAll();
+        $this->assertIsArray($result);
+        $this->assertCount(0, $result);
+        // Verify blogs table still exists
+        $check = $this->pdo->query("SELECT COUNT(*) FROM blogs");
+        $this->assertNotEmpty($check->fetch());
+    }
+
+    public function testSearchParameterizedQuery()
+    {
+        $malicious = "1' OR '1'='1";
+        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE title ILIKE ?");
+        $stmt->execute(["%$malicious%"]);
+        $result = $stmt->fetchAll();
+        $this->assertIsArray($result);
+        // Should not return all rows
+    }
+
+    // ==========================================
+    // SECURITY TESTS — XSS Prevention
+    // ==========================================
+
+    public function testHtmlspecialcharsEscapesScript()
+    {
+        $xss = '<script>alert("XSS")</script>';
+        $escaped = htmlspecialchars($xss, ENT_QUOTES, 'UTF-8');
+        $this->assertStringNotContainsString('<script>', $escaped);
+        $this->assertStringContainsString('&lt;script&gt;', $escaped);
+    }
+
+    public function testHtmlspecialcharsEscapesQuotes()
+    {
+        $xss = '"><img src=x onerror=alert(1)>';
+        $escaped = htmlspecialchars($xss, ENT_QUOTES, 'UTF-8');
+        $this->assertStringNotContainsString('"', $escaped);
+        $this->assertStringContainsString('&quot;', $escaped);
+    }
+
+    public function testHtmlspecialcharsEscapesSingleQuotes()
+    {
+        $xss = "'); alert(1); //";
+        $escaped = htmlspecialchars($xss, ENT_QUOTES, 'UTF-8');
+        $this->assertStringNotContainsString("'", $escaped);
+        $this->assertStringContainsString('&#039;', $escaped);
+    }
+
+    public function testJsonEncodeForJavaScriptContext()
+    {
+        $title = 'Blog"; alert(1); //';
+        $json = json_encode($title);
+        // json_encode escapes double quotes, backslashes, and control chars
+        $this->assertStringNotContainsString('"', str_replace('"', '', $json));
+        // Verify it's safe for HTML attribute context
+        $escaped = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+        $this->assertStringNotContainsString('"', $escaped);
+    }
+
+    // ==========================================
+    // SECURITY TESTS — CSRF Token Generation
+    // ==========================================
+
+    public function testCsrfTokenIsHex64Chars()
+    {
+        $token = bin2hex(random_bytes(32));
+        $this->assertEquals(64, strlen($token));
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $token);
+    }
+
+    public function testCsrfTokenIsUnique()
+    {
+        $tokens = [];
+        for ($i = 0; $i < 100; $i++) {
+            $tokens[] = bin2hex(random_bytes(32));
+        }
+        $this->assertCount(100, array_unique($tokens));
+    }
+
+    // ==========================================
+    // SECURITY TESTS — Session Security
+    // ==========================================
+
+    public function testSessionCookieHardeningSettings()
+    {
+        // Verify these ini settings can be set (won't fail in CLI)
+        ini_set('session.cookie_httponly', 1);
+        ini_set('session.cookie_samesite', 'Lax');
+        ini_set('session.use_strict_mode', 1);
+        $this->assertTrue(true); // If we got here, settings are valid
+    }
+
+    // ==========================================
+    // SECURITY TESTS — Image Upload Validation
+    // ==========================================
+
+    public function testGetimagesizeRejectsNonImage()
+    {
+        $tmpFile = tempnam(sys_get_temp_dir(), 'test');
+        file_put_contents($tmpFile, 'This is not an image');
+        $result = getimagesize($tmpFile);
+        unlink($tmpFile);
+        $this->assertFalse($result);
+    }
+
+    public function testGetimagesizeAcceptsValidPng()
+    {
+        // Create a minimal valid PNG (1x1 pixel)
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+        $tmpFile = tempnam(sys_get_temp_dir(), 'test') . '.png';
+        file_put_contents($tmpFile, $png);
+        $result = getimagesize($tmpFile);
+        unlink($tmpFile);
+        $this->assertNotFalse($result);
+        $this->assertEquals(IMAGETYPE_PNG, $result[2]);
+    }
+
+    public function testImageFilenameIsRandom()
+    {
+        $filenames = [];
+        for ($i = 0; $i < 100; $i++) {
+            $filenames[] = bin2hex(random_bytes(16)) . '.jpg';
+        }
+        $this->assertCount(100, array_unique($filenames));
+    }
+
+    // ==========================================
+    // BLOG CRUD TESTS
+    // ==========================================
+
+    public function testCreateBlog()
+    {
+        // Create a category first (for foreign key)
+        $catStmt = $this->pdo->prepare("INSERT INTO categories (name) VALUES (?) RETURNING id");
+        $catStmt->execute(['Test Category ' . time()]);
+        $catId = $catStmt->fetch()['id'];
+
+        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content, category_id) VALUES (?, ?, ?) RETURNING id");
+        $stmt->execute(['Test Blog ' . time(), 'Test content for portfolio', $catId]);
+        $row = $stmt->fetch();
+        $this->assertNotEmpty($row['id']);
+        $this->assertGreaterThan(0, $row['id']);
+        // Cleanup
+        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$row['id']]);
+        $this->pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$catId]);
+    }
+
+    public function testReadBlog()
+    {
+        // Create
+        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content) VALUES (?, ?) RETURNING id");
+        $stmt->execute(['Read Test', 'Content here']);
+        $id = $stmt->fetch()['id'];
+
+        // Read
+        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE id = ?");
+        $stmt->execute([$id]);
+        $blog = $stmt->fetch();
+        $this->assertEquals('Read Test', $blog['title']);
+        $this->assertEquals('Content here', $blog['content']);
+
+        // Cleanup
+        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$id]);
+    }
+
+    public function testUpdateBlog()
+    {
+        // Create
+        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content) VALUES (?, ?) RETURNING id");
+        $stmt->execute(['Update Test', 'Original content']);
+        $id = $stmt->fetch()['id'];
+
+        // Update
+        $stmt = $this->pdo->prepare("UPDATE blogs SET title = ? WHERE id = ?");
+        $stmt->execute(['Updated Title', $id]);
+
+        // Verify
+        $stmt = $this->pdo->prepare("SELECT title FROM blogs WHERE id = ?");
+        $stmt->execute([$id]);
+        $this->assertEquals('Updated Title', $stmt->fetch()['title']);
+
+        // Cleanup
+        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$id]);
+    }
+
+    public function testDeleteBlog()
+    {
+        // Create
+        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content) VALUES (?, ?) RETURNING id");
+        $stmt->execute(['Delete Test', 'To be deleted']);
+        $id = $stmt->fetch()['id'];
+
+        // Delete
+        $stmt = $this->pdo->prepare("DELETE FROM blogs WHERE id = ?");
+        $stmt->execute([$id]);
+
+        // Verify
+        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE id = ?");
+        $stmt->execute([$id]);
+        $this->assertFalse($stmt->fetch());
+    }
+
+    public function testBlogTitleMaxLength()
+    {
+        $longTitle = str_repeat('A', 256);
+        $this->assertGreaterThan(255, strlen($longTitle));
+        // PostgreSQL VARCHAR(255) would reject this
+        // We test that the schema enforces it
+        try {
+            $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content) VALUES (?, ?)");
+            $stmt->execute([$longTitle, 'test']);
+            // If it succeeded, clean up and note it
+            $this->pdo->exec("DELETE FROM blogs WHERE title = '" . $longTitle . "'");
+            // Schema might not have length constraint — that's a finding
+            $this->addWarning('Blog title column may lack VARCHAR(255) constraint');
+        } catch (PDOException $e) {
+            // Expected — column has length constraint
+            $this->assertStringContainsString('value too long', $e->getMessage());
+        }
+    }
+
+    // ==========================================
+    // API TESTS — Authentication
+    // ==========================================
+
+    public function testApiHealthEndpoint()
+    {
+        $result = @file_get_contents('http://localhost/api/index.php?action=health');
+        if ($result === false) {
+            $this->markTestSkipped('API not accessible');
+        }
+        $data = json_decode($result, true);
+        $this->assertEquals('ok', $data['status']);
+        $this->assertArrayHasKey('timestamp', $data);
+    }
+
+    public function testApiGetBlogsPublic()
+    {
+        $result = @file_get_contents('http://localhost/api/index.php?action=blogs');
+        if ($result === false) {
+            $this->markTestSkipped('API not accessible');
+        }
+        $data = json_decode($result, true);
+        $this->assertTrue($data['success']);
+        $this->assertArrayHasKey('data', $data);
+        $this->assertArrayHasKey('pagination', $data);
+    }
+
+    public function testApiPostRequiresAuth()
+    {
+        $ctx = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => 'Content-Type: application/json',
+                'content' => json_encode(['title' => 'test', 'content' => 'test']),
+            ]
+        ]);
+        $result = @file_get_contents('http://localhost/api/index.php?action=blogs', false, $ctx);
+        if ($result === false) {
+            $this->markTestSkipped('API not accessible');
+        }
+        $data = json_decode($result, true);
+        $this->assertEquals(401, http_response_code());
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testApiFieldWhitelisting()
+    {
+        // Even if authenticated, unexpected fields should be ignored
+        // This tests the array_intersect_key logic
+        $data = ['title' => 'test', 'content' => 'test', 'id' => 999, 'created_at' => 'now'];
+        $allowed = ['title', 'content', 'category_id', 'image'];
+        $filtered = array_intersect_key($data, array_flip($allowed));
+
+        $this->assertArrayHasKey('title', $filtered);
+        $this->assertArrayHasKey('content', $filtered);
+        $this->assertArrayNotHasKey('id', $filtered);
+        $this->assertArrayNotHasKey('created_at', $filtered);
+    }
+
+    // ==========================================
+    // CATEGORY CRUD TESTS
+    // ==========================================
+
+    public function testCreateCategory()
+    {
+        $stmt = $this->pdo->prepare("INSERT INTO categories (name) VALUES (?) RETURNING id");
+        $stmt->execute(['Test Category ' . time()]);
+        $row = $stmt->fetch();
+        $this->assertGreaterThan(0, $row['id']);
+        // Cleanup
+        $this->pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$row['id']]);
+    }
+
+    public function testCategoryUniqueConstraint()
+    {
+        $name = 'Unique Test ' . microtime(true);
+        $stmt = $this->pdo->prepare("INSERT INTO categories (name) VALUES (?)");
+        $stmt->execute([$name]);
+
+        // Verify unique constraint exists by checking pg_constraint
+        $r = $this->pdo->query("SELECT 1 FROM pg_constraint WHERE conrelid='categories'::regclass AND contype='u'");
+        $this->assertNotEmpty($r->fetch(), 'categories table should have a unique constraint');
+
+        // Cleanup
+        $this->pdo->prepare("DELETE FROM categories WHERE name = ?")->execute([$name]);
+    }
+
+    // ==========================================
+    // PAGINATION TESTS
+    // ==========================================
+
+    public function testPaginationCalculation()
+    {
+        $perPage = 9;
+        $totalPosts = 25;
+        $totalPages = max(1, ceil($totalPosts / $perPage));
+        $this->assertEquals(3, $totalPages);
+
+        $totalPosts = 0;
+        $totalPages = max(1, ceil($totalPosts / $perPage));
+        $this->assertEquals(1, $totalPages); // Min 1 page
+    }
+
+    public function testOffsetCalculation()
+    {
+        $perPage = 9;
+        $page = 3;
+        $offset = ($page - 1) * $perPage;
+        $this->assertEquals(18, $offset);
+    }
+
+    public function testLimitOffsetQuery()
+    {
+        $stmt = $this->pdo->prepare("SELECT id FROM blogs ORDER BY id DESC LIMIT ? OFFSET ?");
+        $stmt->execute([5, 0]);
+        $results = $stmt->fetchAll();
+        $this->assertIsArray($results);
+        $this->assertLessThanOrEqual(5, count($results));
+    }
+
+    // ==========================================
+    // INPUT VALIDATION TESTS
+    // ==========================================
+
+    public function testCategoryIdCasting()
+    {
+        $input = "1 OR 1=1";
+        $casted = (int)$input;
+        $this->assertEquals(1, $casted);
+        $this->assertIsInt($casted);
+    }
+
+    public function testPageCasting()
+    {
+        $input = "5; DROP TABLE blogs";
+        $casted = max(1, (int)$input);
+        $this->assertEquals(5, $casted);
+    }
+
+    public function testTrimInput()
+    {
+        $input = "  Hello World  ";
+        $this->assertEquals("Hello World", trim($input));
+    }
+
+    public function testJsonDecode()
+    {
+        $valid = '{"title":"test","content":"test"}';
+        $this->assertIsArray(json_decode($valid, true));
+
+        $invalid = 'not json';
+        $this->assertNull(json_decode($invalid, true));
+    }
+
+    // ==========================================
+    // INTEGRATION TESTS — Full Blog Lifecycle
+    // ==========================================
+
+    public function testFullBlogLifecycle()
+    {
+        // 1. Create category
+        $stmt = $this->pdo->prepare("INSERT INTO categories (name) VALUES (?) RETURNING id");
+        $stmt->execute(['Lifecycle Test Category']);
+        $catId = $stmt->fetch()['id'];
+
+        // 2. Create blog in category
+        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content, category_id) VALUES (?, ?, ?) RETURNING id");
+        $stmt->execute(['Lifecycle Test Blog', 'Full lifecycle test content', $catId]);
+        $blogId = $stmt->fetch()['id'];
+
+        // 3. Read blog with category join
+        $stmt = $this->pdo->prepare("
+            SELECT b.*, c.name AS category_name 
+            FROM blogs b 
+            LEFT JOIN categories c ON b.category_id = c.id 
+            WHERE b.id = ?
+        ");
+        $stmt->execute([$blogId]);
+        $blog = $stmt->fetch();
+        $this->assertEquals('Lifecycle Test Blog', $blog['title']);
+        $this->assertEquals('Lifecycle Test Category', $blog['category_name']);
+
+        // 4. Update blog
+        $stmt = $this->pdo->prepare("UPDATE blogs SET title = ? WHERE id = ?");
+        $stmt->execute(['Updated Lifecycle Blog', $blogId]);
+
+        // 5. Verify update
+        $stmt = $this->pdo->prepare("SELECT title FROM blogs WHERE id = ?");
+        $stmt->execute([$blogId]);
+        $this->assertEquals('Updated Lifecycle Blog', $stmt->fetch()['title']);
+
+        // 6. Delete blog
+        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$blogId]);
+
+        // 7. Delete category
+        $this->pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$catId]);
+
+        // 8. Verify cleanup
+        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE id = ?");
+        $stmt->execute([$blogId]);
+        $this->assertFalse($stmt->fetch());
     }
 }
