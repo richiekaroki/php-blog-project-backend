@@ -1,6 +1,8 @@
 # Blog Backend
 
-PHP blog backend with admin panel, REST API, and PostgreSQL. Runs on Laravel Herd.
+A secure PHP blog backend with admin panel, REST API, and PostgreSQL. Features role-based access control, image uploads, search/filter pagination, and hardened security (CSRF, XSS prevention, rate limiting, session hardening). Runs on Laravel Herd.
+
+**Live Demo:** https://php-blog-backend.onrender.com
 
 ## Stack
 
