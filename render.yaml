@@ -9,30 +9,5 @@ services:
         value: production
       - key: APP_DEBUG
         value: "false"
-      - key: DB_HOST
-        fromDatabase:
-          name: php-blog-db
-          property: host
-      - key: DB_PORT
-        fromDatabase:
-          name: php-blog-db
-          property: port
-      - key: DB_DATABASE
-        fromDatabase:
-          name: php-blog-db
-          property: database
-      - key: DB_USERNAME
-        fromDatabase:
-          name: php-blog-db
-          property: user
-      - key: DB_PASSWORD
-        fromDatabase:
-          name: php-blog-db
-          property: password
       - key: DB_CONNECTION
         value: pgsql
-
-  - type: postgresql
-    name: php-blog-db
-    plan: free
-    database: php_blog
