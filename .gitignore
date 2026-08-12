@@ -2,6 +2,10 @@
 /vendor/
 /node_modules/
 
+# npm (not needed for PHP project)
+package.json
+package-lock.json
+
 # Environment variables
 /.env
 
