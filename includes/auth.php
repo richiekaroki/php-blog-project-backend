@@ -1,6 +1,14 @@
 <?php
 // auth.php - Authentication middleware with role support
 
+// HIGH-5: Session cookie hardening (before session_start)
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_samesite', 'Lax');
+ini_set('session.use_strict_mode', 1);
+if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+    ini_set('session.cookie_secure', 1);
+}
+
 session_start();
 
 // Check if user is logged in
