@@ -22,7 +22,7 @@ http://php-blog-backend-project.test
 
 ## Environment
 
-Copy `.env` and update your PostgreSQL password:
+Copy `.env.example` to `.env` and update your PostgreSQL password:
 
 ```env
 DB_CONNECTION=pgsql
@@ -42,15 +42,17 @@ DB_PASSWORD=your_password
 
 ## API
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/index.php?action=blogs` | List posts |
-| `GET` | `/api/index.php?action=blogs&id=1` | Single post |
-| `POST` | `/api/index.php?action=blogs` | Create post |
-| `PUT` | `/api/index.php?action=blogs&id=1` | Update post |
-| `DELETE` | `/api/index.php?action=blogs&id=1` | Delete post |
-| `GET` | `/api/index.php?action=categories` | List categories |
-| `GET` | `/api/index.php?action=health` | Health check |
+| Method | Endpoint | Auth Required |
+|--------|----------|---------------|
+| `GET` | `/api/index.php?action=blogs` | No |
+| `GET` | `/api/index.php?action=blogs&id=1` | No |
+| `POST` | `/api/index.php?action=blogs` | Yes |
+| `PUT` | `/api/index.php?action=blogs&id=1` | Yes |
+| `DELETE` | `/api/index.php?action=blogs&id=1` | Yes |
+| `GET` | `/api/index.php?action=categories` | No |
+| `GET` | `/api/index.php?action=health` | No |
+
+Write operations (POST/PUT/DELETE) require an authenticated session via `/admin/login.php`.
 
 ## Project Structure
 
@@ -58,7 +60,7 @@ DB_PASSWORD=your_password
 ├── admin/          # Login, blog CRUD, category management
 ├── api/            # REST API (blogs, categories, health)
 ├── assets/         # Bootstrap CSS/JS
-├── includes/       # DB connection, auth, CSRF
+├── includes/       # DB connection, auth, CSRF, security headers
 ├── uploads/        # Image uploads
 ├── sql/            # PostgreSQL schema
 ├── tests/          # PHPUnit tests
@@ -69,13 +71,18 @@ DB_PASSWORD=your_password
 
 ## Security
 
-- PDO prepared statements (SQL injection prevention)
-- CSRF tokens on all forms
-- `htmlspecialchars()` output escaping (XSS prevention)
-- `password_hash()` / `password_verify()` (bcrypt)
-- Session regeneration on login
-- Rate limiting (5 attempts / 15 min)
-- `.env` for credentials (gitignored)
+- **SQL Injection** — PDO prepared statements with `EMULATE_PREPARES=false`
+- **XSS Prevention** — `htmlspecialchars()` with `ENT_QUOTES` on all output
+- **CSRF Protection** — `random_bytes(32)` tokens on all forms, regenerated on login
+- **Password Hashing** — `password_hash()` / `password_verify()` (bcrypt)
+- **Session Security** — `httponly`, `samesite=Lax`, `strict_mode`, regenerated on login
+- **API Authentication** — Write endpoints require authenticated session
+- **Rate Limiting** — Login: 5 attempts / 15 min (IP-based); API: 100 req / min
+- **Image Upload Validation** — `getimagesize()` content verification, random filenames
+- **Security Headers** — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
+- **Error Handling** — Generic error messages, details logged server-side only
+- **Field Whitelisting** — API only accepts allowed fields (prevents mass assignment)
+- **`.env`** — Credentials gitignored, never committed
 
 ## Testing
 
