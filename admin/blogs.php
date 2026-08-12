@@ -54,23 +54,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $category_id = $_POST['category_id'] ?? null;
     $imagePath = null;
 
-    // Handle image upload
+    // Handle image upload — HIGH-1: validate actual content, not just MIME
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-        $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         $maxSize = 5 * 1024 * 1024; // 5MB
-        
-        // Validate file type
-        if (!in_array($_FILES['image']['type'], $allowedTypes)) {
-            die('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.');
-        }
         
         // Validate file size
         if ($_FILES['image']['size'] > $maxSize) {
             die('File too large. Maximum size is 5MB.');
         }
         
-        // Generate unique filename
-        $filename = uniqid('blog_', true) . '_' . basename($_FILES['image']['name']);
+        // HIGH-1: Validate actual image content (not just MIME type)
+        $imageInfo = getimagesize($_FILES['image']['tmp_name']);
+        if ($imageInfo === false) {
+            die('Invalid image file.');
+        }
+        
+        // Map MIME to extension (no user-controlled extension)
+        $mimeToExt = [
+            IMAGETYPE_JPEG => 'jpg',
+            IMAGETYPE_PNG  => 'png',
+            IMAGETYPE_GIF  => 'gif',
+            IMAGETYPE_WEBP => 'webp',
+        ];
+        $ext = $mimeToExt[$imageInfo[2]] ?? null;
+        if (!$ext) {
+            die('Unsupported image type.');
+        }
+        
+        // Generate cryptographically random filename
+        $filename = bin2hex(random_bytes(16)) . '.' . $ext;
         $filepath = $uploadDir . $filename;
         
         // Move uploaded file
@@ -227,7 +239,7 @@ $categories = $catStmt->fetchAll();
                                     <td><span class="badge bg-primary"><?php echo htmlspecialchars($blog['category_name'] ?? 'Uncategorized'); ?></span></td>
                                     <td>
                                         <a href="edit-blog.php?id=<?php echo $blog['id']; ?>" class="btn btn-sm btn-info">Edit</a>
-                                        <button class="btn btn-sm btn-danger" onclick="confirmDelete(<?php echo $blog['id']; ?>, '<?php echo htmlspecialchars($blog['title']); ?>')">Delete</button>
+                                        <button class="btn btn-sm btn-danger" onclick="confirmDelete(<?php echo $blog['id']; ?>, <?php echo htmlspecialchars(json_encode($blog['title']), ENT_QUOTES, 'UTF-8'); ?>)">Delete</button>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
