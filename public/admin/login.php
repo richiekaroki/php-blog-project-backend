@@ -522,8 +522,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
         .dark .back-link:hover { color: #3D7A63; }
         .dark h1 { color: #EB7317; }
         .dark .subtitle { color: #A09580; }
-        .dark input[type="text"],
-        .dark input[type="password"],
         .dark input[type="email"] {
             background: #2A2412;
             border-color: #3D3520;
@@ -564,56 +562,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
                 </div>
             <?php endif; ?>
 
-             <div class="mode-toggle" role="tablist" aria-label="Sign in method">
-                <button type="button" id="tab-password" class="mode-btn<?php echo $magicMode ? '' : ' active'; ?>" role="tab" aria-selected="<?php echo $magicMode ? 'false' : 'true'; ?>" onclick="switchMode('password')">Password</button>
-                <button type="button" id="tab-magic" class="mode-btn<?php echo $magicMode ? ' active' : ''; ?>" role="tab" aria-selected="<?php echo $magicMode ? 'true' : 'false'; ?>" onclick="switchMode('magic')">Passwordless</button>
-            </div>
-
-            <!-- Password login -->
-            <div id="panel-password"<?php echo $magicMode ? ' style="display: none;"' : ''; ?>>
+            <!-- Passwordless sign in via email link -->
+            <?php if (!empty($magicSent)): ?>
+                <div class="magic-sent">
+                    <div class="magic-sent-icon">✓</div>
+                    <p>We sent a sign in link to <strong><?php echo htmlspecialchars($magicEmail ?? '', ENT_QUOTES, 'UTF-8'); ?></strong>. Click it to get started. The link expires in 15 minutes.</p>
+                </div>
+            <?php else: ?>
+                <?php if (!empty($magicError)): ?>
+                    <div class="error-message">
+                        <strong>Error:</strong> <?php echo htmlspecialchars($magicError, ENT_QUOTES, 'UTF-8'); ?>
+                    </div>
+                <?php endif; ?>
+                <p class="magic-subtitle">We will send a secure sign in link to your email. No password required.</p>
                 <form method="POST" action="login.php">
                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
                     <div class="form-group">
-                        <label for="username">Username</label>
-                        <input type="text" name="username" id="username" required placeholder="Enter your username">
+                        <label for="magic_email">Email address</label>
+                        <input type="email" name="magic_email" id="magic_email" required placeholder="you@example.com">
                     </div>
 
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" name="password" id="password" required placeholder="Enter your password">
-                    </div>
-
-                    <button type="submit" class="btn-primary">Sign In</button>
+                    <button type="submit" class="btn-primary">Send me a secure link</button>
                 </form>
-            </div>
-
-            <!-- Passwordless sign in via email link -->
-            <div id="panel-magic"<?php echo $magicMode ? '' : ' style="display: none;"'; ?>>
-                <?php if (!empty($magicSent)): ?>
-                    <div class="magic-sent">
-                        <div class="magic-sent-icon">✓</div>
-                        <p>We sent a sign in link to <strong><?php echo htmlspecialchars($magicEmail ?? '', ENT_QUOTES, 'UTF-8'); ?></strong>. Click it to get started. The link expires in 15 minutes.</p>
-                    </div>
-                <?php else: ?>
-                    <?php if (!empty($magicError)): ?>
-                        <div class="error-message">
-                            <strong>Error:</strong> <?php echo htmlspecialchars($magicError, ENT_QUOTES, 'UTF-8'); ?>
-                        </div>
-                    <?php endif; ?>
-                    <p class="magic-subtitle">We will send a secure sign in link to your email. No password required.</p>
-                    <form method="POST" action="login.php">
-                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-
-                        <div class="form-group">
-                            <label for="magic_email">Email address</label>
-                            <input type="email" name="magic_email" id="magic_email" required placeholder="you@example.com">
-                        </div>
-
-                        <button type="submit" class="btn-primary">Send me a secure link</button>
-                    </form>
-                <?php endif; ?>
-            </div>
+            <?php endif; ?>
         </div>
         
          <p class="footer-text">A place for thoughtful stories and ideas.</p>
@@ -633,20 +605,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
             document.documentElement.classList.toggle('dark');
             localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
         });
-
-        function switchMode(mode) {
-            const passwordTab = document.getElementById('tab-password');
-            const magicTab = document.getElementById('tab-magic');
-            const passwordPanel = document.getElementById('panel-password');
-            const magicPanel = document.getElementById('panel-magic');
-
-            passwordPanel.style.display = mode === 'password' ? '' : 'none';
-            magicPanel.style.display = mode === 'magic' ? '' : 'none';
-            passwordTab.classList.toggle('active', mode === 'password');
-            magicTab.classList.toggle('active', mode === 'magic');
-            passwordTab.setAttribute('aria-selected', mode === 'password');
-            magicTab.setAttribute('aria-selected', mode === 'magic');
-        }
     </script>
 </body>
 </html>

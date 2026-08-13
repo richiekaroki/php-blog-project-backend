@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
 import { api } from '@/api/client'
 import Button from '@/components/ui/Button.vue'
@@ -15,30 +14,12 @@ import { Loader2, ArrowLeft, Mail, ArrowRight, CheckCircle2 } from 'lucide-vue-n
 import { RouterLink } from 'vue-router'
 
 const router = useRouter()
-const authStore = useAuthStore()
 const toast = useToast()
-
-const mode = ref<'password' | 'magic'>('magic')
-
-const form = ref({
-  username: '',
-  password: '',
-})
 
 const magicEmail = ref('')
 const magicLoading = ref(false)
 const magicSent = ref(false)
 const magicError = ref('')
-
-const handleSubmit = async () => {
-  const success = await authStore.login(form.value)
-  if (success) {
-    toast.success('Welcome back!')
-    router.push('/admin')
-  } else {
-    toast.error(authStore.error || 'Login failed')
-  }
-}
 
 async function handleMagicSubmit() {
   if (!magicEmail.value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(magicEmail.value)) {
@@ -76,67 +57,8 @@ async function handleMagicSubmit() {
           <CardDescription class="text-muted-foreground">Sign in to manage your stories</CardDescription>
         </CardHeader>
         <CardContent class="pt-6">
-          <!-- Mode toggle -->
-          <div class="flex items-center gap-1 p-1 bg-muted rounded-lg mb-5">
-            <button
-              @click="mode = 'password'"
-              type="button"
-              class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
-              :class="mode === 'password' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-            >
-              Password
-            </button>
-            <button
-              @click="mode = 'magic'"
-              type="button"
-              class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
-              :class="mode === 'magic' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
-            >
-               Passwordless
-            </button>
-          </div>
-
-          <!-- Password form -->
-          <form v-if="mode === 'password'" @submit.prevent="handleSubmit" class="space-y-5">
-            <div v-if="authStore.error" class="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm flex items-center gap-2">
-              <span class="text-destructive font-medium">Error:</span>
-              {{ authStore.error }}
-            </div>
-
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-dark-olive">Username</label>
-              <Input
-                v-model="form.username"
-                type="text"
-                required
-                placeholder="Enter your username"
-                class="bg-background border-border focus:border-forest-green focus:ring-forest-green"
-              />
-            </div>
-
-            <div class="space-y-2">
-              <label class="text-sm font-medium text-dark-olive">Password</label>
-              <Input
-                v-model="form.password"
-                type="password"
-                required
-                placeholder="Enter your password"
-                class="bg-background border-border focus:border-forest-green focus:ring-forest-green"
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              :disabled="authStore.loading" 
-              class="w-full bg-forest-green hover:bg-forest-green/90 text-white h-11"
-            >
-              <Loader2 v-if="authStore.loading" class="mr-2 h-4 w-4 animate-spin" />
-              {{ authStore.loading ? 'Signing in...' : 'Sign In' }}
-            </Button>
-          </form>
-
-          <!-- Magic link form -->
-          <div v-else-if="mode === 'magic'" class="space-y-5">
+          <!-- Passwordless magic link form -->
+          <div class="space-y-5">
             <div v-if="magicSent" class="text-center py-6">
               <CheckCircle2 class="h-16 w-16 text-forest-green mx-auto mb-4" />
               <h3 class="font-display text-xl font-semibold text-foreground mb-2">Check your inbox</h3>
@@ -146,7 +68,7 @@ async function handleMagicSubmit() {
                 Click it to get started. The link expires in 15 minutes.
               </p>
               <p class="text-sm text-muted-foreground">
-                Didn’t receive it? Check your spam folder or
+                Didn't receive it? Check your spam folder or
                 <button
                   @click="magicSent = false"
                   type="button"
