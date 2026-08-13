@@ -2,15 +2,11 @@
 /vendor/
 /node_modules/
 
-# npm (not needed for PHP project)
-package.json
-package-lock.json
-
 # Environment variables
 /.env
 
 # Runtime generated files
-/uploads/*
+/public/uploads/*
 /logs/*
 /*.log
 
@@ -21,9 +17,6 @@ package-lock.json
 # Build artifacts
 /dist/
 /build/
-
-# Herd specific
-/.config
 
 # IDE specific
 .idea/
@@ -39,11 +32,13 @@ composer.phar
 coverage/
 *.coverage
 
-# Herd share temporary links
+# Herd specific
+/.config
 herd-*
-
-# Temp files
-query
 
 # Screenshots
 screencapture-*.png
+
+# OS files
+Thumbs.db
+.DS_Store

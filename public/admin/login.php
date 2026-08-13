@@ -1,9 +1,13 @@
 <?php
 // admin/login.php - Admin login with PDO, CSRF and Rate Limiting
 
-require '../includes/connect.php';
-require '../includes/csrf.php';
-// session_start() is handled by csrf.php
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+
+use App\Database\Connection;
+use App\Middleware\CSRF;
+
+$pdo = Connection::getInstance();
+CSRF::init();
 
 // HIGH-4: IP-based rate limiting (not session-based — session can be cleared)
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';

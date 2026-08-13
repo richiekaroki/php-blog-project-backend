@@ -1,7 +1,11 @@
 <?php
 // admin/list-blogs.php - Blog list with PDO pagination
 
-require '../includes/connect.php';
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+
+use App\Database\Connection;
+
+$pdo = Connection::getInstance();
 
 // Pagination settings
 $limit = 5;  // Number of blogs per page

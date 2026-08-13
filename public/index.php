@@ -1,8 +1,13 @@
 <?php
 // index.php - Blog homepage with pagination, search, category filtering
 
-require 'includes/connect.php';
-require 'includes/headers.php';
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+use App\Database\Connection;
+use App\Middleware\SecurityHeaders;
+
+$pdo = Connection::getInstance();
+SecurityHeaders::send();
 
 // --- Pagination, Search, Category Filter ---
 $page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;

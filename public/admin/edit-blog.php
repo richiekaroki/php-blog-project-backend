@@ -1,9 +1,15 @@
 <?php
 // admin/edit-blog.php - Edit blog with PDO and CSRF protection
 
-require '../includes/auth.php';
-require '../includes/connect.php';
-require '../includes/csrf.php';
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+
+use App\Database\Connection;
+use App\Middleware\Auth;
+use App\Middleware\CSRF;
+
+Auth::check();
+$pdo = Connection::getInstance();
+CSRF::init();
 
 // Validate CSRF token
 if (!isset($_POST['csrf_token']) || 

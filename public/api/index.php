@@ -15,7 +15,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Load database connection
-require '../includes/connect.php';
+require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+
+use App\Database\Connection;
+
+$pdo = Connection::getInstance();
 
 // Parse the request - supports both path-based and query string routing
 $method = $_SERVER['REQUEST_METHOD'];

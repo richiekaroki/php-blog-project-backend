@@ -1,8 +1,13 @@
 <?php
 // post.php - Display single blog post
 
-require 'includes/connect.php';
-require 'includes/headers.php';
+require_once dirname(__DIR__) . '/vendor/autoload.php';
+
+use App\Database\Connection;
+use App\Middleware\SecurityHeaders;
+
+$pdo = Connection::getInstance();
+SecurityHeaders::send();
 
 // Get post ID
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
