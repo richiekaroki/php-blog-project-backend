@@ -1,14 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { Bold, Italic, List, ListOrdered, Code, Quote, Link } from 'lucide-vue-next'
 
-const props = defineProps<{
-  modelValue: string
-}>()
-
-const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
+const model = defineModel<string>({ required: true })
 
 const textarea = ref<HTMLTextAreaElement | null>(null)
 
@@ -22,7 +16,7 @@ function insert(before: string, after: string = '') {
   const selected = text.substring(start, end)
   
   const newText = text.substring(0, start) + before + selected + after + text.substring(end)
-  emit('update:modelValue', newText)
+  model.value = newText
   
   // Restore cursor position
   setTimeout(() => {
@@ -44,11 +38,11 @@ function wrapSelection(wrapper: string) {
   if (selected.startsWith(wrapper) && selected.endsWith(wrapper)) {
     // Remove wrapper
     const newText = text.substring(0, start) + selected.slice(wrapper.length, -wrapper.length) + text.substring(end)
-    emit('update:modelValue', newText)
+    model.value = newText
   } else {
     // Add wrapper
     const newText = text.substring(0, start) + wrapper + selected + wrapper + text.substring(end)
-    emit('update:modelValue', newText)
+    model.value = newText
   }
   
   setTimeout(() => {
@@ -124,8 +118,8 @@ function wrapSelection(wrapper: string) {
     <!-- Textarea -->
     <textarea
       ref="textarea"
-      :value="modelValue"
-      @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
+      :value="model"
+      @input="model = ($event.target as HTMLTextAreaElement).value"
       class="w-full min-h-[200px] p-3 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white resize-y focus:outline-none"
       placeholder="Write your content here... (supports Markdown)"
     />

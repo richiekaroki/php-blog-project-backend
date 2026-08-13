@@ -16,12 +16,6 @@ interface ActivityItem {
 const activities = ref<ActivityItem[]>([])
 const loading = ref(true)
 
-const actionIcons: Record<string, typeof Plus> = {
-  created: Plus,
-  updated: Edit,
-  deleted: Trash2,
-}
-
 const actionColors: Record<string, string> = {
   created: 'text-green-600 bg-green-100',
   updated: 'text-blue-600 bg-blue-100',
@@ -36,12 +30,10 @@ const entityIcons: Record<string, typeof FileText> = {
 async function fetchActivities() {
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
-    const res = await fetch('/api/activity?limit=20', {
-      headers: { 'Authorization': `Bearer ${token}` }
+    const response = await api.get<{ success: boolean; data: ActivityItem[] }>('/api/activity', {
+      params: { limit: 20 },
     })
-    const data = await res.json()
-    activities.value = data.data || []
+    activities.value = response.data.data || []
   } catch (error) {
     console.error('Failed to fetch activities:', error)
   } finally {
