@@ -568,4 +568,118 @@ class BlogTest extends TestCase
         $stmt->execute([$blogId]);
         $this->assertFalse($stmt->fetch());
     }
+
+    // ==========================================
+    // SECURITY TESTS — Magic Link / TOTP / Sessions
+    // ==========================================
+
+    public function testMagicLinkUsesTableExists()
+    {
+        $stmt = $this->pdo->query("SELECT to_regclass('magic_link_uses') AS table_name");
+        $row = $stmt->fetch();
+        $this->assertNotNull($row['table_name'], 'magic_link_uses table should exist');
+    }
+
+    public function testAuthSessionsTableExists()
+    {
+        $stmt = $this->pdo->query("SELECT to_regclass('auth_sessions') AS table_name");
+        $row = $stmt->fetch();
+        $this->assertNotNull($row['table_name'], 'auth_sessions table should exist');
+    }
+
+    public function testMagicLinkUsesHasUniqueTokenHash()
+    {
+        $stmt = $this->pdo->query("
+            SELECT 1 FROM pg_index
+            WHERE indrelid = 'magic_link_uses'::regclass AND indisunique
+        ");
+        $this->assertNotEmpty($stmt->fetch(), 'magic_link_uses.token_hash must have a unique constraint');
+    }
+
+    public function testMagicLinkIsSingleUse()
+    {
+        $magic = new \App\Auth\MagicLink('test-single-use-key');
+
+        // Clean up any leftovers from a previous run
+        $this->pdo->exec("DELETE FROM magic_link_uses");
+
+        $token = $magic->create('single-use@example.com', 600);
+        $this->assertSame('single-use@example.com', $magic->verify($token));
+
+        // First consume wins
+        $this->assertTrue($magic->consume($this->pdo, $token));
+        // Second consume must lose the race
+        $this->assertFalse($magic->consume($this->pdo, $token));
+
+        $stmt = $this->pdo->query("SELECT COUNT(*) AS c FROM magic_link_uses WHERE email = 'single-use@example.com'");
+        $this->assertEquals(1, (int)$stmt->fetch()['c']);
+
+        // Cleanup
+        $this->pdo->exec("DELETE FROM magic_link_uses");
+    }
+
+    public function testMagicLinkVerifyRejectsTamperedToken()
+    {
+        $magic = new \App\Auth\MagicLink('test-tamper-key');
+        $token = $magic->create('tamper@example.com', 600);
+
+        $parts = explode('.', $token);
+        $parts[1] = str_repeat('0', strlen($parts[1]));
+        $this->assertNull($magic->verify(implode('.', $parts)));
+
+        // Reject empty / malformed tokens
+        $this->assertNull($magic->verify(''));
+        $this->assertNull($magic->verify('abc'));
+    }
+
+    public function testAdminsTableHasTotpSecretColumn()
+    {
+        $stmt = $this->pdo->query("
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'admins' AND column_name = 'totp_secret'
+        ");
+        $this->assertNotEmpty($stmt->fetch(), 'admins.totp_secret column should exist');
+    }
+
+    public function testTotpMatchesRfc6238Vector()
+    {
+        // RFC 6238 Appendix B — SHA1 secret (base32 of "12345678901234567890")
+        $secret = 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ';
+
+        $this->assertEquals('287082', \App\Auth\Totp::code($secret, 59));
+        $this->assertEquals('081804', \App\Auth\Totp::code($secret, 1111111109));
+        $this->assertEquals('050471', \App\Auth\Totp::code($secret, 1111111111));
+        $this->assertEquals('005924', \App\Auth\Totp::code($secret, 1234567890));
+        $this->assertEquals('279037', \App\Auth\Totp::code($secret, 2000000000));
+    }
+
+    public function testTotpVerifyAcceptsValidCodeAndRejectsInvalid()
+    {
+        $secret = \App\Auth\Totp::generateSecret();
+        $this->assertMatchesRegularExpression('/^[A-Z2-7]+$/', $secret);
+
+        $valid = \App\Auth\Totp::code($secret);
+        $this->assertTrue(\App\Auth\Totp::verify($secret, $valid));
+
+        $this->assertFalse(\App\Auth\Totp::verify($secret, '000000'));
+        $this->assertFalse(\App\Auth\Totp::verify($secret, '12345'));
+        $this->assertFalse(\App\Auth\Totp::verify($secret, 'abcdef'));
+    }
+
+    public function testTotpProvisioningUriIsWellFormed()
+    {
+        $uri = \App\Auth\Totp::provisioningUri('SECRET123', 'admin@example.com', 'WAM Blog');
+        $this->assertStringStartsWith('otpauth://totp/', $uri);
+        $this->assertStringContainsString('secret=SECRET123', $uri);
+        $this->assertStringContainsString('issuer=WAM%20Blog', $uri);
+    }
+
+    public function testAuthSessionsSupportsRevocation()
+    {
+        $stmt = $this->pdo->query("
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'auth_sessions' AND column_name = 'revoked_at'
+        ");
+        $this->assertNotEmpty($stmt->fetch(), 'auth_sessions.revoked_at column should exist');
+    }
 }
