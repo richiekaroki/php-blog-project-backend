@@ -55,3 +55,6 @@ frontend/vite-dev.log
 # Local config (not tracked)
 opencode.json
 frontend/opencode.json
+
+# Local-only guide (never commit)
+HOW_IT_WORKS.txt
