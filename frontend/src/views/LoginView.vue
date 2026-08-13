@@ -147,7 +147,7 @@ async function handleMagicSubmit() {
 
             <template v-else>
               <p class="text-sm text-muted-foreground leading-relaxed">
-                No password needed — we'll email you a secure sign in link.
+                We will send a secure sign in link to your email. No password required.
               </p>
 
               <div v-if="magicError" class="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">

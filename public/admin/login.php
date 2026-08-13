@@ -508,10 +508,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
                 </div>
             <?php endif; ?>
 
-            <!-- Mode toggle: Password / Get Started (magic link) -->
-            <div class="mode-toggle" role="tablist" aria-label="Sign in method">
+             <div class="mode-toggle" role="tablist" aria-label="Sign in method">
                 <button type="button" id="tab-password" class="mode-btn<?php echo $magicMode ? '' : ' active'; ?>" role="tab" aria-selected="<?php echo $magicMode ? 'false' : 'true'; ?>" onclick="switchMode('password')">Password</button>
-                <button type="button" id="tab-magic" class="mode-btn<?php echo $magicMode ? ' active' : ''; ?>" role="tab" aria-selected="<?php echo $magicMode ? 'true' : 'false'; ?>" onclick="switchMode('magic')">Get Started</button>
+                <button type="button" id="tab-magic" class="mode-btn<?php echo $magicMode ? ' active' : ''; ?>" role="tab" aria-selected="<?php echo $magicMode ? 'true' : 'false'; ?>" onclick="switchMode('magic')">Magic Link</button>
             </div>
 
             <!-- Password login -->
@@ -533,7 +532,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
                 </form>
             </div>
 
-            <!-- Get Started: passwordless magic link -->
+            <!-- Magic Link: passwordless sign in -->
             <div id="panel-magic"<?php echo $magicMode ? '' : ' style="display: none;"'; ?>>
                 <?php if (!empty($magicSent)): ?>
                     <div class="magic-sent">
@@ -546,7 +545,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
                             <strong>Error:</strong> <?php echo htmlspecialchars($magicError, ENT_QUOTES, 'UTF-8'); ?>
                         </div>
                     <?php endif; ?>
-                    <p class="magic-subtitle">No password needed — we'll email you a secure sign in link.</p>
+                    <p class="magic-subtitle">We will send a secure sign in link to your email. No password required.</p>
                     <form method="POST" action="login.php">
                         <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
 
