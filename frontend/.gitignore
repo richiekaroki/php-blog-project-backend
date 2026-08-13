@@ -1,85 +1,35 @@
-# ==================== DEPENDENCIES ====================
+# Dependencies
 node_modules/
-*/node_modules/
 
-# ==================== BUILD OUTPUTS ====================
+# Build outputs
 dist/
 dist-ssr/
-build/
-*.tgz
-*.tar.gz
 
-# ==================== ENVIRONMENT VARIABLES ====================
+# Environment variables
 .env
 .env.local
 .env.*.local
 
-# ==================== IDE & EDITOR ====================
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 
-# ==================== OS GENERATED FILES ====================
+# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashese
-hthumbs.db
 Thumbs.db
 Desktop.ini
 
-# ==================== LOGS ====================
-logs/
+# Logs
 *.log
 
-# ==================== RUNTIME DATA ====================
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# ==================== COVERAGE & TESTING ====================
+# Coverage
 coverage/
-*/coverage/
 .nyc_output/
-*.lcov
-playwright-report/
-test-results/
 
-# ==================== TYPESCRIPT ====================
+# TypeScript
 *.tsbuildinfo
-next-env.d.ts
 
-# ==================== TEMPORARY FILES ====================
-tmp/
-temp/
-*.tmp
-*.temp
+# Temporary
 .cache/
-.parcel-cache/
-
-# ==================== EDITOR EXTENSIONS ====================
-!.vscode/extensions.json
-
-# ==================== AGENT / SKILL TOOLING ====================
-.agents/
-.impeccable/
-.playwright-mcp/
-skills-lock.json
-opencode.json
-DESIGN.md
-PRODUCT.md
-IMPLEMENTATION_PLAN.md
-
-# ==================== NEXT.JS ====================
-.next/
-out/
-.vercel
-

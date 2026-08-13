@@ -5,32 +5,34 @@
 # Environment variables
 /.env
 
-# Runtime generated files
+# Public uploads (user content)
 /public/uploads/*
-/logs/*
-/*.log
+!/public/uploads/.gitkeep
 
-# Database
-/*.sqlite3
-*.db
+# PHP
+composer.phar
 
-# Build artifacts
-/dist/
-/build/
-
-# IDE specific
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# PHP specific
-composer.lock
-composer.phar
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+/logs/*
+
+# Database
+/*.sqlite3
+*.db
 
 # Test coverage
 coverage/
-*.coverage
 
 # Herd specific
 /.config
@@ -39,6 +41,6 @@ herd-*
 # Screenshots
 screencapture-*.png
 
-# OS files
-Thumbs.db
-.DS_Store
+# Frontend build
+frontend/dist/
+frontend/node_modules/
