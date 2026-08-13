@@ -69,21 +69,17 @@ All components reference these variables via `theme()` or Tailwind's custom util
 
 ## 6. Authentication UI
 
-### Passwordless-First Login
+### Passwordless-Only Login
 
-The default login flow is **magic link / passwordless**. Both the Vue SPA and the PHP admin pages open with the passwordless tab selected.
+The login flow is **magic link / passwordless only**. There is no username/password form.
 
-- **Vue `LoginView.vue`**: Defaults to `mode = 'magic'`; shows email input and "Send me a secure link" button.
-- **PHP `login.php`**: Defaults `$magicMode = true`; the **Passwordless** tab is pre-selected.
+- **Vue `LoginView.vue`**: Shows email input and "Send me a secure link" button.
+- **PHP `login.php`**: Shows email input and "Send me a secure link" button.
 - After submission, the user sees a **"Check your inbox"** confirmation screen with a link to retry.
 
 ### "Enter the blog" CTA
 
 The main call-to-action on the public landing page and navbar is labeled **Enter the blog** and routes to `/login` (Vue) or `/admin/login.php` (PHP).
-
-### Password Fallback
-
-A **Password** tab remains available as a fallback for existing admin users. The password hash is stored in the `admins` table but is **not required** for daily use.
 
 ### Sign-Up Request
 
