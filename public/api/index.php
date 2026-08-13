@@ -5,6 +5,7 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use App\Database\Connection;
 use App\Middleware\CORS;
+use App\Middleware\Auth;
 use App\Models\ActivityLog;
 use App\Auth\MagicLink;
 use App\Mail\Mailer;
@@ -25,13 +26,18 @@ $pdo = Connection::getInstance();
 $method = $_SERVER['REQUEST_METHOD'];
 
 // --- CRITICAL-1: Authentication for write operations ---
+// Role model enforced per-endpoint:
+//   admin  = full access
+//   editor = create/edit, NO delete
+//   viewer = read-only (no writes)
 $writeMethods = ['POST', 'PUT', 'DELETE'];
 $isMagicRequest = ($_GET['action'] ?? '') === 'magic';
 if (in_array($method, $writeMethods) && !$isMagicRequest) {
-    session_start();
-    if (!isset($_SESSION['admin'])) {
+    Auth::startSession();
+    if (!isset($_SESSION['admin']) || !Auth::isSessionValid()) {
         sendResponse(401, ['error' => 'Authentication required for write operations']);
     }
+    loadApiRole($pdo);
 }
 
 // --- Content-Type enforcement for POST/PUT ---
@@ -226,6 +232,7 @@ function handleBlogs($method, $id, $pdo) {
             
         case 'POST':
             // Create new blog — CRITICAL-3: whitelist allowed fields
+            requireApiRole(['admin', 'editor']);
             $data = json_decode(file_get_contents('php://input'), true);
             
             if (!$data || empty($data['title']) || empty($data['content'])) {
@@ -255,6 +262,7 @@ function handleBlogs($method, $id, $pdo) {
             
         case 'PUT':
             // Update blog
+            requireApiRole(['admin', 'editor']);
             if (!$id) {
                 sendResponse(400, ['error' => 'Blog ID is required']);
             }
@@ -311,7 +319,8 @@ function handleBlogs($method, $id, $pdo) {
             break;
             
         case 'DELETE':
-            // Delete blog
+            // Delete blog (admin only)
+            requireApiRole(['admin']);
             if (!$id) {
                 sendResponse(400, ['error' => 'Blog ID is required']);
             }
@@ -372,6 +381,7 @@ function handleCategories($method, $id, $pdo) {
             
         case 'POST':
             // Create new category — CRITICAL-3: whitelist allowed fields
+            requireApiRole(['admin', 'editor']);
             $data = json_decode(file_get_contents('php://input'), true);
             
             if (!$data || empty($data['name'])) {
@@ -398,6 +408,7 @@ function handleCategories($method, $id, $pdo) {
             
         case 'PUT':
             // Update category
+            requireApiRole(['admin', 'editor']);
             if (!$id) {
                 sendResponse(400, ['error' => 'Category ID is required']);
             }
@@ -433,7 +444,8 @@ function handleCategories($method, $id, $pdo) {
             break;
             
         case 'DELETE':
-            // Delete category
+            // Delete category (admin only)
+            requireApiRole(['admin']);
             if (!$id) {
                 sendResponse(400, ['error' => 'Category ID is required']);
             }
@@ -461,11 +473,12 @@ function handleUpload($method, $pdo) {
         sendResponse(405, ['error' => 'Method not allowed']);
     }
     
-    // Check authentication
-    session_start();
-    if (!isset($_SESSION['admin'])) {
+    // Check authentication + role (admin and editor may upload)
+    Auth::startSession();
+    if (!isset($_SESSION['admin']) || !Auth::isSessionValid()) {
         sendResponse(401, ['error' => 'Authentication required']);
     }
+    requireApiRole(['admin', 'editor']);
     
     // Check if file was uploaded
     if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
@@ -522,6 +535,29 @@ function handleUpload($method, $pdo) {
         'filename' => $filename,
         'message' => 'File uploaded successfully',
     ]);
+}
+
+/**
+ * Load the current admin's role into the session for role-based checks.
+ */
+function loadApiRole($pdo): void {
+    if (isset($_SESSION['admin'])) {
+        $stmt = $pdo->prepare("SELECT role FROM admins WHERE username = ? LIMIT 1");
+        $stmt->execute([$_SESSION['admin']]);
+        $row = $stmt->fetch();
+        $_SESSION['user_role'] = $row['role'] ?? 'editor';
+    }
+}
+
+/**
+ * Require the current session to have one of the given roles.
+ * Fails with a 403 otherwise. Must be called after authentication.
+ */
+function requireApiRole(array $roles): void {
+    $role = $_SESSION['user_role'] ?? null;
+    if (!in_array($role, $roles, true)) {
+        sendResponse(403, ['error' => 'Insufficient permissions for this action']);
+    }
 }
 
 /**
@@ -602,7 +638,7 @@ function handleMagic($method, $pdo) {
     // Always return the same generic response to avoid leaking which emails are registered.
     if ($user) {
         try {
-            $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 900);
+            $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
             $magic = new MagicLink();
             $token = $magic->create($email, $ttl);
 
@@ -683,7 +719,7 @@ function emailHtml(string $loginUrl): string {
     $safeUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
     return '<!DOCTYPE html><html><body style="font-family:Georgia,serif;background:#FBF9F1;color:#2E2910;padding:24px;text-align:center;">'
         . '<h1 style="color:#2C5745;">Sign in to WAM Blog</h1>'
-        . '<p>Click the button below to sign in. This link is valid for 15 minutes.</p>'
+        . '<p>Click the button below to sign in. This link is valid for 10 minutes.</p>'
         . '<a href="' . $safeUrl . '" style="display:inline-block;margin:16px auto;padding:12px 24px;background:#2C5745;color:#fff;text-decoration:none;border-radius:8px;">Sign In</a>'
         . '<p style="color:#5C5340;font-size:14px;">If you did not request this, you can safely ignore this email.</p>'
         . '</body></html>';
@@ -695,12 +731,11 @@ function emailHtml(string $loginUrl): string {
  * PUT  /api/profile {username?, email?}
  */
 function handleProfile($method, $pdo) {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
-    if (!isset($_SESSION['admin'])) {
+    Auth::startSession();
+    if (!isset($_SESSION['admin']) || !Auth::isSessionValid()) {
         sendResponse(401, ['error' => 'Authentication required']);
     }
+    loadApiRole($pdo);
 
     $username = $_SESSION['admin'];
 
