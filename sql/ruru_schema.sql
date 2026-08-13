@@ -36,3 +36,8 @@ CREATE TABLE blogs (
 -- Example: INSERT INTO admins (username, password) VALUES ('admin', '$2y$10$...');
 INSERT INTO admins (username, password)
 VALUES ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4KzaCEoXf2uVEr59uRJ1uKwY ghost hasher$');
+
+-- Performance indexes
+CREATE INDEX IF NOT EXISTS idx_blogs_category_id ON blogs(category_id);
+CREATE INDEX IF NOT EXISTS idx_blogs_id_desc ON blogs(id DESC);
+CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);

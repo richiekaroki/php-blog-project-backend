@@ -8,6 +8,10 @@ use App\Middleware\CORS;
 
 CORS::handle();
 
+// Generate unique request ID for debugging
+$requestId = bin2hex(random_bytes(8));
+header("X-Request-ID: $requestId");
+
 header('Content-Type: application/json');
 header('X-Frame-Options: DENY');
 header('X-Content-Type-Options: nosniff');
@@ -23,6 +27,14 @@ if (in_array($method, $writeMethods)) {
     session_start();
     if (!isset($_SESSION['admin'])) {
         sendResponse(401, ['error' => 'Authentication required for write operations']);
+    }
+}
+
+// --- Content-Type enforcement for POST/PUT ---
+if (in_array($method, ['POST', 'PUT'])) {
+    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+    if (!str_contains($contentType, 'application/json')) {
+        sendResponse(415, ['error' => 'Content-Type must be application/json']);
     }
 }
 
@@ -44,6 +56,13 @@ if (file_exists($rateFile)) {
 }
 
 file_put_contents($rateFile, json_encode($rateData));
+
+// Add rate limit headers
+$remaining = max(0, 100 - $rateData['count']);
+$resetTime = $rateData['window'] + 60;
+header("X-RateLimit-Limit: 100");
+header("X-RateLimit-Remaining: $remaining");
+header("X-RateLimit-Reset: $resetTime");
 
 if ($rateData['count'] > 100) {
     sendResponse(429, ['error' => 'Rate limit exceeded. Max 100 requests per minute.']);
@@ -83,7 +102,22 @@ try {
             handleCategories($method, $id, $pdo);
             break;
         case 'health':
-            sendResponse(200, ['status' => 'ok', 'timestamp' => date('c')]);
+            // Check database connectivity
+            try {
+                $pdo->query("SELECT 1");
+                $dbStatus = 'connected';
+                $httpStatus = 200;
+            } catch (PDOException $e) {
+                $dbStatus = 'disconnected';
+                $httpStatus = 503;
+            }
+            
+            sendResponse($httpStatus, [
+                'status' => $httpStatus === 200 ? 'ok' : 'degraded',
+                'database' => $dbStatus,
+                'timestamp' => date('c'),
+                'uptime' => time(),
+            ]);
             break;
         default:
             sendResponse(404, ['error' => 'Endpoint not found', 'available' => ['/api/blogs', '/api/categories', '/api/health']]);
@@ -113,38 +147,61 @@ function handleBlogs($method, $id, $pdo) {
                 if (!$blog) {
                     sendResponse(404, ['error' => 'Blog not found']);
                 }
+                setCacheHeaders($blog, 30);
                 sendResponse(200, ['success' => true, 'data' => $blog]);
             } else {
-                // Get all blogs with pagination
+                // Get all blogs with pagination (supports both offset and cursor)
                 $page = max(1, (int)($_GET['page'] ?? 1));
                 $limit = min(50, max(1, (int)($_GET['limit'] ?? 10)));
-                $offset = ($page - 1) * $limit;
+                $cursor = $_GET['cursor'] ?? null;
                 
                 // Get total count
                 $countStmt = $pdo->query("SELECT COUNT(*) AS total FROM blogs");
                 $total = $countStmt->fetch()['total'];
                 
-                // Get blogs
-                $stmt = $pdo->prepare("
-                    SELECT b.*, c.name AS category_name 
-                    FROM blogs b 
-                    LEFT JOIN categories c ON b.category_id = c.id 
-                    ORDER BY b.id DESC 
-                    LIMIT ? OFFSET ?
-                ");
-                $stmt->execute([$limit, $offset]);
+                // Cursor-based or offset-based pagination
+                if ($cursor) {
+                    $stmt = $pdo->prepare("
+                        SELECT b.*, c.name AS category_name 
+                        FROM blogs b 
+                        LEFT JOIN categories c ON b.category_id = c.id 
+                        WHERE b.id < ?
+                        ORDER BY b.id DESC 
+                        LIMIT ?
+                    ");
+                    $stmt->execute([(int)$cursor, $limit]);
+                } else {
+                    $offset = ($page - 1) * $limit;
+                    $stmt = $pdo->prepare("
+                        SELECT b.*, c.name AS category_name 
+                        FROM blogs b 
+                        LEFT JOIN categories c ON b.category_id = c.id 
+                        ORDER BY b.id DESC 
+                        LIMIT ? OFFSET ?
+                    ");
+                    $stmt->execute([$limit, $offset]);
+                }
                 $blogs = $stmt->fetchAll();
                 
-                sendResponse(200, [
+                // Get next cursor for cursor-based pagination
+                $nextCursor = null;
+                if ($cursor && count($blogs) === $limit) {
+                    $nextCursor = end($blogs)['id'];
+                }
+                
+                $response = [
                     'success' => true,
                     'data' => $blogs,
                     'pagination' => [
                         'total' => (int)$total,
                         'page' => $page,
                         'limit' => $limit,
-                        'pages' => ceil($total / $limit)
+                        'pages' => ceil($total / $limit),
+                        'next_cursor' => $nextCursor,
                     ]
-                ]);
+                ];
+                setCacheHeaders($response, 60);
+                sendResponse(200, $response);
             }
             break;
             
@@ -159,10 +216,15 @@ function handleBlogs($method, $id, $pdo) {
             $allowed = ['title', 'content', 'category_id', 'image'];
             $data = array_intersect_key($data, array_flip($allowed));
             
-            $title = $data['title'];
-            $content = $data['content'];
+            // Sanitize text fields (prevent stored XSS via API)
+            $title = strip_tags(trim($data['title']));
+            $content = strip_tags(trim($data['content']));
             $categoryId = $data['category_id'] ?? null;
             $image = $data['image'] ?? null;
+            
+            if (empty($title)) {
+                sendResponse(400, ['error' => 'Title cannot be empty after sanitization']);
+            }
             
             $stmt = $pdo->prepare("INSERT INTO blogs (title, content, image, category_id) VALUES (?, ?, ?, ?)");
             $stmt->execute([$title, $content, $image, $categoryId]);
@@ -200,11 +262,11 @@ function handleBlogs($method, $id, $pdo) {
             
             if (isset($data['title'])) {
                 $updates[] = "title = ?";
-                $params[] = $data['title'];
+                $params[] = strip_tags(trim($data['title']));
             }
             if (isset($data['content'])) {
                 $updates[] = "content = ?";
-                $params[] = $data['content'];
+                $params[] = strip_tags(trim($data['content']));
             }
             if (isset($data['image'])) {
                 $updates[] = "image = ?";
@@ -269,11 +331,13 @@ function handleCategories($method, $id, $pdo) {
                 $blogStmt->execute([$id]);
                 $category['blogs'] = $blogStmt->fetchAll();
                 
+                setCacheHeaders($category, 60);
                 sendResponse(200, ['success' => true, 'data' => $category]);
             } else {
                 // Get all categories
                 $stmt = $pdo->query("SELECT * FROM categories ORDER BY name");
                 $categories = $stmt->fetchAll();
+                setCacheHeaders($categories, 120);
                 sendResponse(200, ['success' => true, 'data' => $categories]);
             }
             break;
@@ -289,8 +353,13 @@ function handleCategories($method, $id, $pdo) {
             $allowed = ['name', 'description'];
             $data = array_intersect_key($data, array_flip($allowed));
             
-            $name = $data['name'];
-            $description = $data['description'] ?? '';
+            // Sanitize text fields
+            $name = strip_tags(trim($data['name']));
+            $description = strip_tags(trim($data['description'] ?? ''));
+            
+            if (empty($name)) {
+                sendResponse(400, ['error' => 'Name cannot be empty after sanitization']);
+            }
             
             $stmt = $pdo->prepare("INSERT INTO categories (name, description) VALUES (?, ?)");
             $stmt->execute([$name, $description]);
@@ -326,6 +395,8 @@ function handleCategories($method, $id, $pdo) {
             $description = $data['description'] ?? null;
             
             if ($name) {
+                $name = strip_tags(trim($name));
+                $description = $description ? strip_tags(trim($description)) : null;
                 $stmt = $pdo->prepare("UPDATE categories SET name = ?, description = ? WHERE id = ?");
                 $stmt->execute([$name, $description, $id]);
             }
@@ -355,10 +426,40 @@ function handleCategories($method, $id, $pdo) {
 }
 
 /**
- * Send JSON response
+ * Send JSON response with consistent format
  */
 function sendResponse($statusCode, $data) {
+    global $requestId;
+    
     http_response_code($statusCode);
+    
+    // Add request_id to all responses
+    $data['request_id'] = $requestId;
+    
+    // For error responses, use consistent error format
+    if ($statusCode >= 400 && isset($data['error']) && !is_array($data['error'])) {
+        $data['error'] = [
+            'code' => 'ERROR_' . $statusCode,
+            'message' => $data['error'],
+        ];
+    }
+    
     echo json_encode($data, JSON_PRETTY_PRINT);
     exit;
+}
+
+/**
+ * Set cache headers for GET requests
+ */
+function setCacheHeaders($data, $maxAge = 60) {
+    $etag = '"' . md5(json_encode($data)) . '"';
+    header("Cache-Control: public, max-age=$maxAge");
+    header("ETag: $etag");
+    
+    // Check if client has matching ETag
+    $clientEtag = $_SERVER['HTTP_IF_NONE_MATCH'] ?? '';
+    if ($clientEtag === $etag) {
+        http_response_code(304);
+        exit;
+    }
 }
