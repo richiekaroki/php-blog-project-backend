@@ -65,7 +65,7 @@ async function handleMagicSubmit() {
               <p class="text-sm text-muted-foreground mb-4">
                 We sent a secure sign in link to
                 <span class="font-medium text-foreground">{{ magicEmail }}</span>.
-                Click it to get started. The link expires in 15 minutes.
+                Click it to get started. The link expires in 10 minutes.
               </p>
               <p class="text-sm text-muted-foreground">
                 Didn't receive it? Check your spam folder or

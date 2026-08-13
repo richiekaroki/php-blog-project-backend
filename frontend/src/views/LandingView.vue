@@ -16,7 +16,7 @@ const loading = ref(true)
 const showGetStarted = ref(false)
 const { isDark, toggle } = useDarkMode()
 
-const liveBlogBase = 'https://php-blog-backend.onrender.com'
+const liveBlogBase = import.meta.env.DEV ? 'https://php-blog-backend.onrender.com' : ''
 
 onMounted(async () => {
   try {

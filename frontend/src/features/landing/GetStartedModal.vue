@@ -56,7 +56,7 @@ async function submit() {
           <h3 class="font-display text-xl font-semibold text-foreground mb-2">Check your inbox</h3>
           <p class="text-muted-foreground text-sm leading-relaxed">
             We sent a sign in link to <span class="font-medium text-foreground">{{ email }}</span>.
-            Click it to get started. The link expires in 15 minutes.
+            Click it to get started. The link expires in 10 minutes.
           </p>
         </div>
 
