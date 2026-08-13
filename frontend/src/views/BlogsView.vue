@@ -35,10 +35,18 @@ function handleCancel() {
 async function handleSubmit(data: FormData) {
   if (editingBlog.value) {
     const result = await blogStore.updateBlog(editingBlog.value.id, data)
-    if (result) toast.success('Blog updated successfully')
+    if (result) {
+      toast.success('Blog updated successfully')
+    } else {
+      toast.error(blogStore.error || 'Failed to update blog')
+    }
   } else {
     const result = await blogStore.createBlog(data)
-    if (result) toast.success('Blog created successfully')
+    if (result) {
+      toast.success('Blog created successfully')
+    } else {
+      toast.error(blogStore.error || 'Failed to create blog')
+    }
   }
   showForm.value = false
   editingBlog.value = null
@@ -47,7 +55,11 @@ async function handleSubmit(data: FormData) {
 async function handleDelete(id: number) {
   if (confirm('Are you sure you want to delete this blog?')) {
     const success = await blogStore.deleteBlog(id)
-    if (success) toast.success('Blog deleted successfully')
+    if (success) {
+      toast.success('Blog deleted successfully')
+    } else {
+      toast.error(blogStore.error || 'Failed to delete blog')
+    }
   }
 }
 </script>

@@ -2,10 +2,12 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from '@/composables/useToast'
 import { Loader2 } from 'lucide-vue-next'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const toast = useToast()
 
 const form = ref({
   username: '',
@@ -15,7 +17,10 @@ const form = ref({
 const handleSubmit = async () => {
   const success = await authStore.login(form.value)
   if (success) {
+    toast.success('Welcome back!')
     router.push('/')
+  } else {
+    toast.error(authStore.error || 'Login failed')
   }
 }
 </script>

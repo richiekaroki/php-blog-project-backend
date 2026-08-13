@@ -34,10 +34,18 @@ function handleCancel() {
 async function handleSubmit(data: { name: string; description: string }) {
   if (editingCategory.value) {
     const result = await blogStore.updateCategory(editingCategory.value.id, data)
-    if (result) toast.success('Category updated successfully')
+    if (result) {
+      toast.success('Category updated successfully')
+    } else {
+      toast.error(blogStore.error || 'Failed to update category')
+    }
   } else {
     const result = await blogStore.createCategory(data)
-    if (result) toast.success('Category created successfully')
+    if (result) {
+      toast.success('Category created successfully')
+    } else {
+      toast.error(blogStore.error || 'Failed to create category')
+    }
   }
   showForm.value = false
   editingCategory.value = null
@@ -46,7 +54,11 @@ async function handleSubmit(data: { name: string; description: string }) {
 async function handleDelete(id: number) {
   if (confirm('Are you sure you want to delete this category?')) {
     const success = await blogStore.deleteCategory(id)
-    if (success) toast.success('Category deleted successfully')
+    if (success) {
+      toast.success('Category deleted successfully')
+    } else {
+      toast.error(blogStore.error || 'Failed to delete category')
+    }
   }
 }
 </script>
