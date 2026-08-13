@@ -5,6 +5,11 @@ import { useToast } from '@/composables/useToast'
 import type { Blog } from '@/types'
 import BlogList from '@/components/blogs/BlogList.vue'
 import BlogForm from '@/components/blogs/BlogForm.vue'
+import Button from '@/components/ui/Button.vue'
+import Card from '@/components/ui/Card.vue'
+import CardHeader from '@/components/ui/CardHeader.vue'
+import CardTitle from '@/components/ui/CardTitle.vue'
+import CardContent from '@/components/ui/CardContent.vue'
 import { Plus, X } from 'lucide-vue-next'
 
 const blogStore = useBlogStore()
@@ -67,33 +72,32 @@ async function handleDelete(id: number) {
 <template>
   <div class="space-y-6">
     <div class="flex items-center justify-between">
-      <h2 class="text-2xl font-bold text-gray-900">Blogs</h2>
-      <button
-        @click="handleCreate"
-        class="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800"
-      >
-        <Plus class="w-4 h-4" />
+      <h2 class="text-2xl font-bold">Blogs</h2>
+      <Button @click="handleCreate">
+        <Plus class="mr-2 h-4 w-4" />
         New Blog
-      </button>
+      </Button>
     </div>
 
-    <div v-if="showForm" class="bg-white rounded-xl border border-gray-200 p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-semibold text-gray-900">
+    <Card v-if="showForm">
+      <CardHeader class="flex flex-row items-center justify-between">
+        <CardTitle>
           {{ editingBlog ? 'Edit Blog' : 'Create Blog' }}
-        </h3>
-        <button @click="handleCancel" class="p-1 text-gray-400 hover:text-gray-600">
-          <X class="w-5 h-5" />
-        </button>
-      </div>
-      <BlogForm
-        :blog="editingBlog"
-        :categories="blogStore.categories"
-        :loading="blogStore.loading"
-        @submit="handleSubmit"
-        @cancel="handleCancel"
-      />
-    </div>
+        </CardTitle>
+        <Button variant="ghost" size="icon" @click="handleCancel">
+          <X class="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <BlogForm
+          :blog="editingBlog"
+          :categories="blogStore.categories"
+          :loading="blogStore.loading"
+          @submit="handleSubmit"
+          @cancel="handleCancel"
+        />
+      </CardContent>
+    </Card>
 
     <BlogList
       :blogs="blogStore.blogs"

@@ -3,6 +3,13 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/composables/useToast'
+import Button from '@/components/ui/Button.vue'
+import Input from '@/components/ui/Input.vue'
+import Card from '@/components/ui/Card.vue'
+import CardHeader from '@/components/ui/CardHeader.vue'
+import CardTitle from '@/components/ui/CardTitle.vue'
+import CardDescription from '@/components/ui/CardDescription.vue'
+import CardContent from '@/components/ui/CardContent.vue'
 import { Loader2 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -26,51 +33,44 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-50">
-    <div class="w-full max-w-md">
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-        <div class="text-center mb-8">
-          <h1 class="text-2xl font-bold text-gray-900">Blog Admin</h1>
-          <p class="text-gray-500 mt-2">Sign in to manage your content</p>
-        </div>
-
+  <div class="min-h-screen flex items-center justify-center bg-muted">
+    <Card class="w-full max-w-md">
+      <CardHeader class="text-center">
+        <CardTitle class="text-2xl">Blog Admin</CardTitle>
+        <CardDescription>Sign in to manage your content</CardDescription>
+      </CardHeader>
+      <CardContent>
         <form @submit.prevent="handleSubmit" class="space-y-4">
-          <div v-if="authStore.error" class="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div v-if="authStore.error" class="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-destructive text-sm">
             {{ authStore.error }}
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
-            <input
+          <div class="space-y-2">
+            <label class="text-sm font-medium leading-none">Username</label>
+            <Input
               v-model="form.username"
               type="text"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               placeholder="Enter username"
             />
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
+          <div class="space-y-2">
+            <label class="text-sm font-medium leading-none">Password</label>
+            <Input
               v-model="form.password"
               type="password"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
               placeholder="Enter password"
             />
           </div>
 
-          <button
-            type="submit"
-            :disabled="authStore.loading"
-            class="w-full py-2.5 px-4 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            <Loader2 v-if="authStore.loading" class="w-4 h-4 animate-spin" />
+          <Button type="submit" :disabled="authStore.loading" class="w-full">
+            <Loader2 v-if="authStore.loading" class="mr-2 h-4 w-4 animate-spin" />
             {{ authStore.loading ? 'Signing in...' : 'Sign In' }}
-          </button>
+          </Button>
         </form>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   </div>
 </template>

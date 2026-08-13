@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import type { Blog, Category } from '@/types'
+import Button from '@/components/ui/Button.vue'
+import Input from '@/components/ui/Input.vue'
+import Textarea from '@/components/ui/Textarea.vue'
+import Select from '@/components/ui/Select.vue'
 import { Loader2 } from 'lucide-vue-next'
 
 const props = defineProps<{
@@ -52,68 +56,54 @@ function handleSubmit() {
 
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-4">
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
-      <input
+    <div class="space-y-2">
+      <label class="text-sm font-medium leading-none">Title</label>
+      <Input
         v-model="form.title"
         type="text"
         required
-        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
         placeholder="Blog title"
       />
     </div>
 
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Content</label>
-      <textarea
+    <div class="space-y-2">
+      <label class="text-sm font-medium leading-none">Content</label>
+      <Textarea
         v-model="form.content"
         required
         rows="6"
-        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
         placeholder="Blog content"
       />
     </div>
 
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-      <select
-        v-model="form.category_id"
-        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-      >
+    <div class="space-y-2">
+      <label class="text-sm font-medium leading-none">Category</label>
+      <Select v-model="form.category_id">
         <option :value="null">Select category</option>
         <option v-for="cat in categories" :key="cat.id" :value="cat.id">
           {{ cat.name }}
         </option>
-      </select>
+      </Select>
     </div>
 
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-1">Featured Image</label>
-      <input
+    <div class="space-y-2">
+      <label class="text-sm font-medium leading-none">Featured Image</label>
+      <Input
         type="file"
         accept="image/*"
         @change="(e) => (imageFile = (e.target as HTMLInputElement).files?.[0] || null)"
-        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
       />
-      <p class="text-xs text-gray-500 mt-1">Max 5MB. JPEG, PNG, GIF, WebP.</p>
+      <p class="text-xs text-muted-foreground">Max 5MB. JPEG, PNG, GIF, WebP.</p>
     </div>
 
     <div class="flex gap-3 pt-2">
-      <button
-        type="submit"
-        :disabled="loading"
-        class="px-4 py-2 bg-gray-900 text-white rounded-lg font-medium hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2"
-      >
-        <Loader2 v-if="loading" class="w-4 h-4 animate-spin" />
+      <Button type="submit" :disabled="loading">
+        <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
         {{ loading ? 'Saving...' : blog ? 'Update Blog' : 'Create Blog' }}
-      </button>
-      <button
-        type="button"
-        @click="emit('cancel')"
-        class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
-      >
+      </Button>
+      <Button type="button" variant="outline" @click="emit('cancel')">
         Cancel
-      </button>
+      </Button>
     </div>
   </form>
 </template>

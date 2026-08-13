@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import type { Blog } from '@/types'
+import Card from '@/components/ui/Card.vue'
+import CardHeader from '@/components/ui/CardHeader.vue'
+import CardTitle from '@/components/ui/CardTitle.vue'
+import CardContent from '@/components/ui/CardContent.vue'
+import Button from '@/components/ui/Button.vue'
 import { Pencil, Trash2 } from 'lucide-vue-next'
 
 defineProps<{
@@ -21,62 +26,53 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="bg-white rounded-xl border border-gray-200">
-    <div class="p-4 border-b border-gray-200">
-      <h3 class="font-semibold text-gray-900">All Blogs ({{ pagination.total }})</h3>
-    </div>
+  <Card>
+    <CardHeader>
+      <CardTitle>All Blogs ({{ pagination.total }})</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div v-if="loading" class="text-center text-muted-foreground py-8">Loading...</div>
 
-    <div v-if="loading" class="p-8 text-center text-gray-500">Loading...</div>
-
-    <div v-else-if="blogs.length === 0" class="p-8 text-center text-gray-500">
-      No blogs found. Create your first blog post!
-    </div>
-
-    <div v-else class="divide-y divide-gray-200">
-      <div
-        v-for="blog in blogs"
-        :key="blog.id"
-        class="p-4 flex items-center justify-between hover:bg-gray-50"
-      >
-        <div class="flex-1 min-w-0">
-          <p class="font-medium text-gray-900 truncate">{{ blog.title }}</p>
-          <p class="text-sm text-gray-500 truncate mt-1">
-            {{ blog.category_name || 'Uncategorized' }}
-          </p>
-        </div>
-        <div class="flex items-center gap-2 ml-4">
-          <button
-            @click="emit('edit', blog)"
-            class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-          >
-            <Pencil class="w-4 h-4" />
-          </button>
-          <button
-            @click="emit('delete', blog.id)"
-            class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-          >
-            <Trash2 class="w-4 h-4" />
-          </button>
-        </div>
+      <div v-else-if="blogs.length === 0" class="text-center text-muted-foreground py-8">
+        No blogs found. Create your first blog post!
       </div>
-    </div>
 
-    <div v-if="pagination.pages > 1" class="p-4 border-t border-gray-200">
-      <div class="flex items-center justify-center gap-2">
-        <button
-          v-for="page in pagination.pages"
-          :key="page"
-          @click="emit('pageChange', page)"
-          class="px-3 py-1 text-sm rounded-lg"
-          :class="[
-            page === pagination.page
-              ? 'bg-gray-900 text-white'
-              : 'text-gray-600 hover:bg-gray-100',
-          ]"
+      <div v-else class="divide-y">
+        <div
+          v-for="blog in blogs"
+          :key="blog.id"
+          class="py-4 flex items-center justify-between first:pt-0 last:pb-0"
         >
-          {{ page }}
-        </button>
+          <div class="flex-1 min-w-0">
+            <p class="font-medium truncate">{{ blog.title }}</p>
+            <p class="text-sm text-muted-foreground truncate mt-1">
+              {{ blog.category_name || 'Uncategorized' }}
+            </p>
+          </div>
+          <div class="flex items-center gap-2 ml-4">
+            <Button variant="ghost" size="icon" @click="emit('edit', blog)">
+              <Pencil class="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" @click="emit('delete', blog.id)">
+              <Trash2 class="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
+
+      <div v-if="pagination.pages > 1" class="mt-4 pt-4 border-t">
+        <div class="flex items-center justify-center gap-2">
+          <Button
+            v-for="page in pagination.pages"
+            :key="page"
+            :variant="page === pagination.page ? 'default' : 'outline'"
+            size="sm"
+            @click="emit('pageChange', page)"
+          >
+            {{ page }}
+          </Button>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
 </template>
