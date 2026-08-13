@@ -22,6 +22,10 @@ services:
       - key: MAIL_USERNAME
         value: b4bec8001@smtp-brevo.com
       # Set MAIL_PASSWORD (SMTP key) in the Render dashboard — never commit secrets.
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: APP_KEY
+        generateValue: true
       - key: MAIL_FROM_ADDRESS
         value: noreply@wamblog.com
       - key: MAIL_FROM_NAME
