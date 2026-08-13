@@ -41,9 +41,8 @@ export interface ApiResponse<T> {
   message?: string
 }
 
-export interface LoginCredentials {
-  username: string
-  password: string
+export interface MagicLinkRequest {
+  email: string
 }
 
 export interface BlogFormData {

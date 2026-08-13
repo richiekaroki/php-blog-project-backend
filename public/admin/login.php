@@ -175,72 +175,14 @@ if ($_SESSION[$rateKey]['count'] >= $max_attempts &&
     die('Too many login attempts. Please try again in ' . ceil($remaining / 60) . ' minutes.');
 }
 
-// Handle login form submission (skip when a magic link request was posted above)
-if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
-    // Validate CSRF token INSIDE the POST handler
-    if (!isset($_POST['csrf_token']) || 
-        $_POST['csrf_token'] !== $_SESSION['csrf_token'] ||
-        hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']) === false) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid CSRF token']);
-        exit;
-    }
+// Rate limit key for magic link requests
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+$rateKey = "magic_attempts_" . md5($ip);
 
-    // Increment attempt counter (IP-based)
-    $_SESSION[$rateKey]['count']++;
-    $_SESSION[$rateKey]['time'] = $current_time;
-
-    // Get username and password from the form
-    $username = $_POST['username'];
-    $password = $_POST['password'];
-
-    // Check if username and password are valid using PDO prepared statement
-    $sql = "SELECT * FROM admins WHERE username = ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$username]);
-    $user = $stmt->fetch();
-
-    if ($user && password_verify($password, $user['password'])) {
-        // Successful login
-        $_SESSION['admin'] = $username;
-        // Regenerate session ID to prevent fixation
-        session_regenerate_id(true);
-        // HIGH-3: Regenerate CSRF token after login (prevent token fixation)
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        // Reset login attempts on success
-        $_SESSION[$rateKey] = ['count' => 0, 'time' => 0];
-        $_SESSION['user_role'] = $user['role'] ?? 'editor';
-
-        // Return JSON for API requests, redirect for HTML forms
-        if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
-            echo json_encode([
-                'success' => true,
-                'user' => [
-                    'id' => (int)$user['id'],
-                    'username' => $user['username'],
-                    'email' => $user['email'] ?? null,
-                    'role' => $user['role'] ?? 'editor',
-                ]
-            ]);
-        } else {
-            header("Location: blogs.php");
-        }
-        exit;
-    } else {
-        // Invalid credentials - show error but don't reveal if user exists
-        if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
-            http_response_code(401);
-            echo json_encode(['error' => 'Invalid username or password']);
-        } else {
-            $error = "Invalid username or password";
-        }
-    }
+if (!isset($_SESSION[$rateKey])) {
+    $_SESSION[$rateKey] = ['count' => 0, 'time' => 0];
 }
 ?>
-<?php $magicMode = true; ?>
-<?php if (isset($_GET['mode']) && $_GET['mode'] === 'password'): ?>
-    <?php $magicMode = false; ?>
-<?php endif; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

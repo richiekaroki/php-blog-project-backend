@@ -693,7 +693,6 @@ function emailHtml(string $loginUrl): string {
  * Handle the signed-in admin's own profile.
  * GET  /api/profile              -> fetch username, email, role
  * PUT  /api/profile {username?, email?}
- * PUT  /api/profile {current_password, new_password} -> change password
  */
 function handleProfile($method, $pdo) {
     if (session_status() !== PHP_SESSION_ACTIVE) {
@@ -732,24 +731,6 @@ function handleProfile($method, $pdo) {
     }
 
     $changes = [];
-
-    // --- Password change flow ---
-    $changingPassword = isset($data['current_password']) || isset($data['new_password']);
-    if ($changingPassword) {
-        if (!isset($data['current_password'], $data['new_password'])) {
-            sendResponse(400, ['error' => 'Current and new password are both required']);
-        }
-        if (!password_verify($data['current_password'], $user['password'])) {
-            sendResponse(400, ['error' => 'Current password is incorrect']);
-        }
-        $newPassword = $data['new_password'];
-        if (strlen($newPassword) < 8) {
-            sendResponse(400, ['error' => 'New password must be at least 8 characters']);
-        }
-        $stmt = $pdo->prepare("UPDATE admins SET password = ? WHERE id = ?");
-        $stmt->execute([password_hash($newPassword, PASSWORD_DEFAULT), $user['id']]);
-        $changes[] = 'password';
-    }
 
     // --- Profile field updates ---
     $updates = [];
