@@ -128,50 +128,57 @@ function downloadBlob(blob: Blob, filename: string) {
 <template>
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <h2 class="text-2xl font-bold">Blogs</h2>
-      <div class="flex items-center gap-2">
+      <div>
+        <h2 class="font-display text-2xl font-bold text-dark-olive">Blog Posts</h2>
+        <p class="text-sm text-muted-foreground mt-1">Create and manage your stories</p>
+      </div>
+      <div class="flex items-center gap-3">
         <div class="relative">
-          <Button variant="outline" @click="showExportMenu = !showExportMenu">
+          <Button 
+            variant="outline" 
+            @click="showExportMenu = !showExportMenu"
+            class="border-border text-muted-foreground hover:text-foreground"
+          >
             <Download class="mr-2 h-4 w-4" />
             Export
           </Button>
           <div
             v-if="showExportMenu"
-            class="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg z-10"
+            class="absolute right-0 mt-2 w-48 bg-card border border-border rounded-xl shadow-lg z-10 overflow-hidden"
           >
             <button
               @click="exportJSON"
-              class="flex items-center gap-2 w-full px-4 py-2 text-sm text-left hover:bg-gray-50 dark:hover:bg-gray-800 rounded-t-lg"
+              class="flex items-center gap-3 w-full px-4 py-3 text-sm text-left hover:bg-muted transition-colors"
             >
-              <FileJson class="h-4 w-4" />
-              Export as JSON
+              <FileJson class="h-4 w-4 text-forest-green" />
+              <span class="text-foreground">Export as JSON</span>
             </button>
             <button
               @click="exportCSV"
-              class="flex items-center gap-2 w-full px-4 py-2 text-sm text-left hover:bg-gray-50 dark:hover:bg-gray-800 rounded-b-lg"
+              class="flex items-center gap-3 w-full px-4 py-3 text-sm text-left hover:bg-muted transition-colors border-t border-border"
             >
-              <FileSpreadsheet class="h-4 w-4" />
-              Export as CSV
+              <FileSpreadsheet class="h-4 w-4 text-warm-orange" />
+              <span class="text-foreground">Export as CSV</span>
             </button>
           </div>
         </div>
-        <Button @click="handleCreate">
+        <Button @click="handleCreate" class="bg-forest-green hover:bg-forest-green/90 text-white">
           <Plus class="mr-2 h-4 w-4" />
-          New Blog
+          New Post
         </Button>
       </div>
     </div>
 
-    <Card v-if="showForm">
-      <CardHeader class="flex flex-row items-center justify-between">
-        <CardTitle>
-          {{ editingBlog ? 'Edit Blog' : 'Create Blog' }}
+    <Card v-if="showForm" class="border-0 shadow-lg">
+      <CardHeader class="flex flex-row items-center justify-between border-b border-border">
+        <CardTitle class="font-display text-lg">
+          {{ editingBlog ? 'Edit Post' : 'Create New Post' }}
         </CardTitle>
-        <Button variant="ghost" size="icon" @click="handleCancel">
+        <Button variant="ghost" size="icon" @click="handleCancel" class="text-muted-foreground hover:text-foreground">
           <X class="h-4 w-4" />
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent class="pt-6">
         <BlogForm
           :blog="editingBlog"
           :categories="blogStore.categories"
@@ -184,11 +191,11 @@ function downloadBlob(blob: Blob, filename: string) {
 
     <!-- Search bar -->
     <div class="relative">
-      <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <Search class="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
       <Input
         v-model="searchQuery"
-        placeholder="Search blogs by title or category..."
-        class="pl-10"
+        placeholder="Search by title or category..."
+        class="pl-11 bg-card border-border focus:border-forest-green focus:ring-forest-green h-11"
       />
     </div>
 

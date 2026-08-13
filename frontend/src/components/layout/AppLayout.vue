@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute } from 'vue-router'
 import Sidebar from './Sidebar.vue'
@@ -9,9 +9,7 @@ const authStore = useAuthStore()
 const route = useRoute()
 const sidebarOpen = ref(false)
 
-const isLanding = route.name === 'landing'
-const isLogin = route.name === 'login'
-const isPublic = isLanding || isLogin
+const isPublic = computed(() => route.name === 'landing' || route.name === 'login')
 
 function closeSidebar() {
   sidebarOpen.value = false

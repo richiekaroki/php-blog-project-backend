@@ -31,96 +31,116 @@ const maxCount = computed(() => Math.max(...categoryStats.value.map((s) => s.cou
 
 <template>
   <div class="space-y-6">
+    <!-- Welcome header -->
+    <div class="bg-gradient-to-r from-forest-green to-forest-green/80 rounded-2xl p-6 text-white">
+      <h1 class="font-display text-2xl font-bold mb-1">Content Dashboard</h1>
+      <p class="text-white/80">Manage your stories and track their performance</p>
+    </div>
+
     <!-- Stats cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <Card>
+      <Card class="border-0 shadow-sm hover:shadow-md transition-shadow">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Total Blogs</CardTitle>
-          <FileText class="h-4 w-4 text-muted-foreground" />
+          <CardTitle class="text-sm font-medium text-muted-foreground">Total Stories</CardTitle>
+          <div class="p-2 bg-forest-green/10 rounded-lg">
+            <FileText class="h-4 w-4 text-forest-green" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">{{ blogStore.pagination.total }}</div>
+          <div class="text-3xl font-bold text-dark-olive">{{ blogStore.pagination.total }}</div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card class="border-0 shadow-sm hover:shadow-md transition-shadow">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Categories</CardTitle>
-          <Tag class="h-4 w-4 text-muted-foreground" />
+          <CardTitle class="text-sm font-medium text-muted-foreground">Categories</CardTitle>
+          <div class="p-2 bg-warm-orange/10 rounded-lg">
+            <Tag class="h-4 w-4 text-warm-orange" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">{{ blogStore.categories.length }}</div>
+          <div class="text-3xl font-bold text-dark-olive">{{ blogStore.categories.length }}</div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card class="border-0 shadow-sm hover:shadow-md transition-shadow">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Avg. per Category</CardTitle>
-          <BarChart3 class="h-4 w-4 text-muted-foreground" />
+          <CardTitle class="text-sm font-medium text-muted-foreground">Avg. per Category</CardTitle>
+          <div class="p-2 bg-forest-green/10 rounded-lg">
+            <BarChart3 class="h-4 w-4 text-forest-green" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold">
+          <div class="text-3xl font-bold text-dark-olive">
             {{ categoryStats.length ? Math.round(blogStore.blogs.length / categoryStats.length) : 0 }}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card class="border-0 shadow-sm hover:shadow-md transition-shadow">
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle class="text-sm font-medium">Status</CardTitle>
-          <TrendingUp class="h-4 w-4 text-muted-foreground" />
+          <CardTitle class="text-sm font-medium text-muted-foreground">Status</CardTitle>
+          <div class="p-2 bg-forest-green/10 rounded-lg">
+            <TrendingUp class="h-4 w-4 text-forest-green" />
+          </div>
         </CardHeader>
         <CardContent>
-          <div class="text-2xl font-bold text-green-600">Active</div>
+          <div class="text-3xl font-bold text-forest-green">Active</div>
         </CardContent>
       </Card>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <!-- Category distribution chart -->
-      <Card>
+      <Card class="border-0 shadow-sm">
         <CardHeader>
-          <CardTitle>Blogs by Category</CardTitle>
+          <CardTitle class="font-display text-lg">Stories by Category</CardTitle>
         </CardHeader>
         <CardContent>
           <div v-if="categoryStats.length" class="space-y-4">
             <div v-for="stat in categoryStats" :key="stat.name" class="space-y-2">
               <div class="flex items-center justify-between text-sm">
-                <span class="font-medium truncate">{{ stat.name }}</span>
+                <span class="font-medium text-foreground truncate">{{ stat.name }}</span>
                 <span class="text-muted-foreground">{{ stat.count }}</span>
               </div>
-              <div class="h-2 bg-muted rounded-full overflow-hidden">
+              <div class="h-2.5 bg-muted rounded-full overflow-hidden">
                 <div
-                  class="h-full bg-primary rounded-full transition-all duration-500"
+                  class="h-full bg-gradient-to-r from-forest-green to-forest-green/70 rounded-full transition-all duration-500"
                   :style="{ width: `${(stat.count / maxCount) * 100}%` }"
                 />
               </div>
             </div>
           </div>
-          <p v-else class="text-muted-foreground text-center py-4">No data yet.</p>
+          <div v-else class="text-center py-8">
+            <BarChart3 class="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p class="text-muted-foreground">No data yet.</p>
+          </div>
         </CardContent>
       </Card>
 
       <!-- Recent blogs -->
-      <Card>
+      <Card class="border-0 shadow-sm">
         <CardHeader>
-          <CardTitle>Recent Blogs</CardTitle>
+          <CardTitle class="font-display text-lg">Recent Stories</CardTitle>
         </CardHeader>
         <CardContent>
           <div v-if="blogStore.blogs.length" class="space-y-3">
             <div
               v-for="blog in blogStore.blogs.slice(0, 5)"
               :key="blog.id"
-              class="flex items-center justify-between p-3 bg-muted rounded-lg"
+              class="flex items-center justify-between p-3 bg-muted/50 rounded-xl hover:bg-muted transition-colors"
             >
               <div class="min-w-0">
-                <p class="font-medium truncate">{{ blog.title }}</p>
+                <p class="font-medium text-foreground truncate">{{ blog.title }}</p>
                 <p class="text-sm text-muted-foreground">{{ blog.category_name || 'Uncategorized' }}</p>
               </div>
-              <span class="text-xs text-muted-foreground ml-2">#{{ blog.id }}</span>
+              <span class="text-xs text-muted-foreground ml-2 font-mono">#{{ blog.id }}</span>
             </div>
           </div>
-          <p v-else class="text-muted-foreground text-center py-4">No blogs yet.</p>
+          <div v-else class="text-center py-8">
+            <FileText class="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+            <p class="text-muted-foreground">No stories yet.</p>
+          </div>
         </CardContent>
       </Card>
     </div>

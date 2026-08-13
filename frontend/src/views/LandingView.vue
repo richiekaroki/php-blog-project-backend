@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
 import CardContent from '@/components/ui/CardContent.vue'
 import { RouterLink } from 'vue-router'
-import { ArrowRight, Shield, Database, Code, Lock } from 'lucide-vue-next'
+import { ArrowRight, BookOpen, Feather, Sparkles, PenLine } from 'lucide-vue-next'
 
 const blogs = ref<Blog[]>([])
 const categories = ref<Category[]>([])
@@ -15,10 +15,10 @@ const loading = ref(true)
 onMounted(async () => {
   try {
     const [blogsRes, catsRes] = await Promise.all([
-      api.get('/api/index.php?action=blogs&limit=3'),
+      api.get('/api/index.php?action=blogs&limit=6'),
       api.get('/api/index.php?action=categories'),
     ])
-    blogs.value = blogsRes.data.data?.slice(0, 3) || []
+    blogs.value = blogsRes.data.data?.slice(0, 6) || []
     categories.value = catsRes.data.data || []
   } catch {
     // API might not be running
@@ -28,107 +28,194 @@ onMounted(async () => {
 })
 
 const features = [
-  { icon: Shield, title: 'OWASP Security', desc: 'CSRF, XSS, rate limiting, session hardening' },
-  { icon: Database, title: 'PostgreSQL', desc: 'Neon serverless database on Render' },
-  { icon: Code, title: 'REST API', desc: 'Full CRUD with authentication' },
-  { icon: Lock, title: 'Role-Based Access', desc: 'Admin, editor, viewer roles' },
+  { icon: BookOpen, title: 'Curated Stories', desc: 'Thoughtfully crafted articles on topics that matter' },
+  { icon: Feather, title: 'Clean Writing', desc: 'Distraction free reading with beautiful typography' },
+  { icon: Sparkles, title: 'Fresh Perspectives', desc: 'New ideas and insights published regularly' },
 ]
 </script>
 
 <template>
   <div class="min-h-screen bg-background">
     <!-- Navbar -->
-    <nav class="border-b">
+    <nav class="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
       <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span class="text-primary-foreground font-bold text-sm">B</span>
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-primary rounded-full flex items-center justify-center">
+            <span class="text-primary-foreground font-display font-bold text-lg">W</span>
           </div>
-          <span class="font-semibold text-lg">Blog Backend</span>
+          <span class="font-display font-semibold text-xl text-foreground">WAM Blog</span>
         </div>
         <div class="flex items-center gap-4">
           <RouterLink to="/login">
-            <Button variant="ghost">Admin Login</Button>
+            <Button variant="ghost" class="text-muted-foreground hover:text-foreground">Sign In</Button>
           </RouterLink>
-          <a href="https://github.com/richiekaroki/php-blog-project-backend" target="_blank">
-            <Button variant="outline">GitHub</Button>
+          <a href="https://php-blog-backend.onrender.com" target="_blank">
+            <Button variant="outline" class="border-forest-green/30 text-forest-green hover:bg-forest-green hover:text-white">Read Blog</Button>
           </a>
         </div>
       </div>
     </nav>
 
     <!-- Hero -->
-    <section class="py-20 px-6">
+    <section class="pt-20 pb-16 px-6 bg-gradient-to-b from-warm-cream/60 via-background to-background">
       <div class="max-w-4xl mx-auto text-center">
-        <h1 class="text-5xl font-bold tracking-tight mb-6">
-          Secure PHP Blog Backend
+        <div class="inline-flex items-center gap-2 px-4 py-2 bg-forest-green/10 rounded-full text-forest-green text-sm font-medium mb-8">
+          <Sparkles class="h-4 w-4" />
+          Welcome to thoughtful reading
+        </div>
+        <h1 class="font-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-6 text-dark-olive leading-[1.15]">
+          Stories worth your time
         </h1>
-        <p class="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-          A production-ready blog backend built with PHP 8.4, PostgreSQL, and Vue 3.
-          Features role-based access control, REST API, and comprehensive security.
+        <p class="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
+          A space for carefully crafted articles, ideas, and perspectives.
+          No noise, no distractions — just meaningful content that inspires curiosity.
         </p>
-        <div class="flex items-center justify-center gap-4">
-          <RouterLink to="/login">
-            <Button size="lg">
-              Open Admin Panel
+        <div class="flex items-center justify-center gap-4 flex-wrap">
+          <a href="#featured">
+            <Button size="lg" class="bg-forest-green hover:bg-forest-green/90 text-white px-8">
+              Start Reading
               <ArrowRight class="ml-2 h-4 w-4" />
             </Button>
+          </a>
+          <RouterLink to="/login">
+            <Button size="lg" variant="ghost" class="text-muted-foreground">
+              <PenLine class="mr-2 h-4 w-4" />
+              Write for us
+            </Button>
           </RouterLink>
-          <a href="https://php-blog-backend.onrender.com" target="_blank">
-            <Button size="lg" variant="outline">Live Demo</Button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Featured Posts -->
+    <section id="featured" class="py-16 px-6">
+      <div class="max-w-6xl mx-auto">
+        <div class="flex items-end justify-between mb-10">
+          <div>
+            <h2 class="font-display text-3xl font-bold text-dark-olive mb-1">Featured Stories</h2>
+            <p class="text-muted-foreground">Handpicked articles we think you'll enjoy</p>
+          </div>
+          <a href="https://php-blog-backend.onrender.com" target="_blank" class="text-forest-green hover:text-forest-green/80 font-medium flex items-center gap-1">
+            View all
+            <ArrowRight class="h-4 w-4" />
           </a>
         </div>
-      </div>
-    </section>
 
-    <!-- Features -->
-    <section class="py-16 px-6 bg-muted/50">
-      <div class="max-w-6xl mx-auto">
-        <h2 class="text-2xl font-bold text-center mb-12">What's Under the Hood</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card v-for="feature in features" :key="feature.title">
-            <CardContent class="pt-6">
-              <component :is="feature.icon" class="h-10 w-10 mb-4 text-primary" />
-              <h3 class="font-semibold mb-2">{{ feature.title }}</h3>
-              <p class="text-sm text-muted-foreground">{{ feature.desc }}</p>
-            </CardContent>
-          </Card>
+        <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div v-for="i in 3" :key="i" class="animate-pulse">
+            <div class="bg-muted rounded-2xl aspect-[16/10] mb-4"></div>
+            <div class="bg-muted rounded h-4 w-3/4 mb-2"></div>
+            <div class="bg-muted rounded h-4 w-1/2"></div>
+          </div>
+        </div>
+
+        <div v-else-if="blogs.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <RouterLink
+            v-for="blog in blogs.slice(0, 3)"
+            :key="blog.id"
+            :to="`/post/${blog.id}`"
+            class="group"
+          >
+            <Card class="h-full border-0 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden bg-card rounded-2xl">
+              <div class="aspect-[16/10] overflow-hidden bg-muted">
+                <img
+                  v-if="blog.image"
+                  :src="blog.image"
+                  :alt="blog.title"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                >
+                <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-warm-cream to-muted">
+                  <BookOpen class="h-12 w-12 text-forest-green/30" />
+                </div>
+              </div>
+              <CardContent class="p-6">
+                <div v-if="blog.category_name" class="inline-block px-3 py-1 bg-forest-green/10 text-forest-green text-xs font-medium rounded-full mb-3">
+                  {{ blog.category_name }}
+                </div>
+                <h3 class="font-display text-xl font-semibold mb-2 text-dark-olive group-hover:text-forest-green transition-colors">
+                  {{ blog.title }}
+                </h3>
+                <p class="text-muted-foreground text-sm leading-relaxed">
+                  {{ blog.content?.substring(0, 120) }}…
+                </p>
+              </CardContent>
+            </Card>
+          </RouterLink>
+        </div>
+
+        <div v-else class="text-center py-14 bg-card border border-border/50 rounded-2xl">
+          <BookOpen class="h-14 w-14 text-forest-green/25 mx-auto mb-4" />
+          <h3 class="font-display text-xl font-semibold text-dark-olive mb-1">Fresh stories on the way</h3>
+          <p class="text-muted-foreground">New articles are being written. Check back soon.</p>
         </div>
       </div>
     </section>
 
-    <!-- Tech Stack -->
+    <!-- About Section -->
+    <section class="py-16 px-6 bg-warm-cream/30">
+      <div class="max-w-4xl mx-auto text-center">
+        <h2 class="font-display text-3xl font-bold text-dark-olive mb-6">A quiet corner for curious minds</h2>
+        <p class="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
+          In a world of endless scrolling and clickbait, we believe in the power of
+          thoughtful writing. Each piece here is crafted with care, designed to inform,
+          inspire, and spark meaningful conversation.
+        </p>
+        <div class="flex items-center justify-center gap-8 text-sm text-muted-foreground flex-wrap">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-forest-green"></div>
+            <span>Thoughtful content</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-warm-orange"></div>
+            <span>No distractions</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-dark-olive"></div>
+            <span>Clean design</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Categories -->
     <section class="py-16 px-6">
-      <div class="max-w-4xl mx-auto">
-        <h2 class="text-2xl font-bold text-center mb-8">Tech Stack</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-          <div class="p-4 rounded-lg border">
-            <p class="font-semibold">PHP 8.4</p>
-            <p class="text-sm text-muted-foreground">Backend</p>
-          </div>
-          <div class="p-4 rounded-lg border">
-            <p class="font-semibold">PostgreSQL</p>
-            <p class="text-sm text-muted-foreground">Database</p>
-          </div>
-          <div class="p-4 rounded-lg border">
-            <p class="font-semibold">Vue 3</p>
-            <p class="text-sm text-muted-foreground">Frontend</p>
-          </div>
-          <div class="p-4 rounded-lg border">
-            <p class="font-semibold">Docker</p>
-            <p class="text-sm text-muted-foreground">Deployment</p>
-          </div>
+      <div class="max-w-6xl mx-auto">
+        <h2 class="font-display text-3xl font-bold text-dark-olive mb-8 text-center">Explore Topics</h2>
+        <div v-if="categories.length" class="flex flex-wrap justify-center gap-3">
+          <span
+            v-for="cat in categories.slice(0, 8)"
+            :key="cat.id"
+            class="px-5 py-2.5 bg-card border border-border rounded-full text-sm font-medium text-muted-foreground hover:border-forest-green hover:text-forest-green hover:bg-forest-green/5 transition-colors cursor-pointer"
+          >
+            {{ cat.name }}
+          </span>
+        </div>
+        <div v-else class="flex flex-wrap justify-center gap-3">
+          <span class="px-5 py-2.5 bg-card border border-border/60 rounded-full text-sm font-medium text-muted-foreground">Technology</span>
+          <span class="px-5 py-2.5 bg-card border border-border/60 rounded-full text-sm font-medium text-muted-foreground">Design</span>
+          <span class="px-5 py-2.5 bg-card border border-border/60 rounded-full text-sm font-medium text-muted-foreground">Life</span>
+          <span class="px-5 py-2.5 bg-card border border-border/60 rounded-full text-sm font-medium text-muted-foreground">Ideas</span>
         </div>
       </div>
     </section>
 
     <!-- Footer -->
-    <footer class="border-t py-8 px-6">
-      <div class="max-w-6xl mx-auto flex items-center justify-between text-sm text-muted-foreground">
-        <p>Built for portfolio demonstration</p>
-        <div class="flex items-center gap-4">
-          <a href="https://github.com/richiekaroki/php-blog-project-backend" class="hover:text-foreground">GitHub</a>
-          <a href="https://php-blog-backend.onrender.com" class="hover:text-foreground">Live Demo</a>
+    <footer class="border-t border-border/50 py-12 px-6 bg-warm-cream/20">
+      <div class="max-w-6xl mx-auto">
+        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+              <span class="text-primary-foreground font-display font-bold text-sm">W</span>
+            </div>
+            <span class="font-display font-semibold text-foreground">WAM Blog</span>
+          </div>
+          <p class="text-sm text-muted-foreground">
+            Crafted with care for readers who appreciate quality content.
+          </p>
+          <div class="flex items-center gap-6 text-sm text-muted-foreground">
+            <a href="https://github.com/richiekaroki/php-blog-project-backend" class="hover:text-forest-green transition-colors">GitHub</a>
+            <a href="https://php-blog-backend.onrender.com" class="hover:text-forest-green transition-colors">Live Demo</a>
+          </div>
         </div>
       </div>
     </footer>

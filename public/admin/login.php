@@ -124,42 +124,221 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login</title>
-    <link rel="stylesheet" href="../assets/css/bootstrap.min.css">
+    <title>Admin Login - WAM Blog</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-background: #FBF9F1;
+            --color-foreground: #2E2910;
+            --color-card: #FFFFFF;
+            --color-primary: #2C5745;
+            --color-primary-foreground: #FFFFFF;
+            --color-muted: #F5F0DC;
+            --color-muted-foreground: #5C5340;
+            --color-border: #D4C9A8;
+            --color-warm-cream: #EBE3A7;
+            --color-warm-orange: #EB7D00;
+            --color-forest-green: #2C5745;
+            --color-dark-olive: #2E2910;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--color-background) 0%, var(--color-warm-cream) 50%, var(--color-background) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            color: var(--color-foreground);
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-muted-foreground);
+            text-decoration: none;
+            font-size: 0.875rem;
+            margin-bottom: 2rem;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--color-forest-green);
+        }
+
+        .card {
+            background: var(--color-card);
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+        }
+
+        .logo {
+            width: 3rem;
+            height: 3rem;
+            background: var(--color-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+
+        .logo-text {
+            font-family: 'Lora', Georgia, serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--color-primary-foreground);
+        }
+
+        h1 {
+            font-family: 'Lora', Georgia, serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-align: center;
+            color: var(--color-dark-olive);
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--color-muted-foreground);
+            font-size: 0.875rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--color-dark-olive);
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            font-family: inherit;
+            border: 1px solid var(--color-border);
+            border-radius: 0.5rem;
+            background: var(--color-background);
+            color: var(--color-foreground);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            outline: none;
+            border-color: var(--color-forest-green);
+            box-shadow: 0 0 0 3px rgba(44, 87, 69, 0.1);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            font-family: inherit;
+            background: var(--color-forest-green);
+            color: var(--color-primary-foreground);
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .btn-primary:hover {
+            background: #234a3a;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            padding: 1rem;
+            background: rgba(197, 48, 48, 0.1);
+            border: 1px solid rgba(197, 48, 48, 0.2);
+            border-radius: 0.5rem;
+            color: #c53030;
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-text {
+            text-align: center;
+            color: var(--color-muted-foreground);
+            font-size: 0.875rem;
+            margin-top: 1.5rem;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <div class="row justify-content-center mt-5">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="text-center">Admin Login</h4>
-                    </div>
-                    <div class="card-body">
-                        <?php if (isset($error)): ?>
-                            <div class="alert alert-danger">
-                                <strong>Login failed.</strong> <small><?php echo $error; ?></small>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <form method="POST" action="login.php">
-                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Username</label>
-                                <input type="text" name="username" id="username" class="form-control" required>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Password</label>
-                                <input type="password" name="password" id="password" class="form-control" required>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary w-100">Login</button>
-                        </form>
-                    </div>
-                </div>
+    <div class="login-container">
+        <a href="/" class="back-link">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+            </svg>
+            Back to blog
+        </a>
+        
+        <div class="card">
+            <div class="logo">
+                <span class="logo-text">W</span>
             </div>
+            <h1>Welcome back</h1>
+            <p class="subtitle">Sign in to manage your stories</p>
+            
+            <?php if (isset($error)): ?>
+                <div class="error-message">
+                    <strong>Error:</strong> <?php echo $error; ?>
+                </div>
+            <?php endif; ?>
+            
+            <form method="POST" action="login.php">
+                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" name="username" id="username" required placeholder="Enter your username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" required placeholder="Enter your password">
+                </div>
+                
+                <button type="submit" class="btn-primary">Sign In</button>
+            </form>
         </div>
-    </body>
+        
+        <p class="footer-text">A place for thoughtful stories and ideas.</p>
+    </div>
+</body>
 </html>

@@ -70,24 +70,27 @@ async function handleDelete(id: number) {
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <h2 class="text-2xl font-bold">Categories</h2>
-      <Button @click="handleCreate">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h2 class="font-display text-2xl font-bold text-dark-olive">Categories</h2>
+        <p class="text-sm text-muted-foreground mt-1">Organize your stories by topic</p>
+      </div>
+      <Button @click="handleCreate" class="bg-forest-green hover:bg-forest-green/90 text-white">
         <Plus class="mr-2 h-4 w-4" />
         New Category
       </Button>
     </div>
 
-    <Card v-if="showForm">
-      <CardHeader class="flex flex-row items-center justify-between">
-        <CardTitle>
+    <Card v-if="showForm" class="border-0 shadow-lg">
+      <CardHeader class="flex flex-row items-center justify-between border-b border-border">
+        <CardTitle class="font-display text-lg">
           {{ editingCategory ? 'Edit Category' : 'Create Category' }}
         </CardTitle>
-        <Button variant="ghost" size="icon" @click="handleCancel">
+        <Button variant="ghost" size="icon" @click="handleCancel" class="text-muted-foreground hover:text-foreground">
           <X class="h-4 w-4" />
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent class="pt-6">
         <CategoryForm
           :category="editingCategory"
           :loading="blogStore.loading"
