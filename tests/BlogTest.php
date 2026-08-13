@@ -96,8 +96,19 @@ class BlogTest extends TestCase
         $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
         $this->assertContains('id', $columns);
         $this->assertContains('username', $columns);
-        $this->assertContains('password', $columns);
         $this->assertContains('role', $columns);
+        $this->assertContains('email', $columns);
+    }
+
+    public function testAdminsTableHasNoPasswordColumn()
+    {
+        // Auth is passwordless (magic link + TOTP); the legacy bcrypt column
+        // must not exist so unused hashes can't be stored or exfiltrated.
+        $stmt = $this->pdo->query("
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'admins' AND column_name = 'password'
+        ");
+        $this->assertFalse($stmt->fetch(), 'admins.password column should have been dropped');
     }
 
     public function testCategoriesTableHasRequiredColumns()
@@ -109,33 +120,83 @@ class BlogTest extends TestCase
     }
 
     // ==========================================
-    // SECURITY TESTS — Password Hashing
+    // SECURITY TESTS — DB-Backed Rate Limiting
     // ==========================================
 
-    public function testPasswordIsBcryptHash()
+    public function testLoginRateLimitsTableExists()
     {
-        $stmt = $this->pdo->query("SELECT password FROM admins LIMIT 1");
-        $admin = $stmt->fetch();
-        $this->assertNotEmpty($admin);
-        // bcrypt hashes start with $2y$
-        $this->assertStringStartsWith('$2y$', $admin['password']);
+        $stmt = $this->pdo->query("SELECT to_regclass('login_rate_limits') AS table_name");
+        $row = $stmt->fetch();
+        $this->assertNotNull($row['table_name'], 'login_rate_limits table should exist');
     }
 
-    public function testPasswordVerifyWorks()
+    public function testRateLimitBlocksAfterMaxAttempts()
     {
-        $stmt = $this->pdo->query("SELECT password FROM admins WHERE username = 'admin' LIMIT 1");
-        $admin = $stmt->fetch();
-        $this->assertNotEmpty($admin);
-        $this->assertTrue(password_verify('password', $admin['password']));
-        $this->assertFalse(password_verify('wrong_password', $admin['password']));
+        $this->pdo->exec("DELETE FROM login_rate_limits WHERE bucket = 'test_login'");
+
+        $rl = new \App\Middleware\RateLimit($this->pdo);
+        $ip = '203.0.113.99';
+
+        // 3 attempts under the max of 5 → never blocked
+        $this->assertFalse($rl->isBlocked('test_login', $ip, 5, 900));
+        $this->assertSame(1, $rl->hit('test_login', $ip, 900));
+        $this->assertFalse($rl->isBlocked('test_login', $ip, 5, 900));
+        $this->assertSame(2, $rl->hit('test_login', $ip, 900));
+        $this->assertSame(3, $rl->hit('test_login', $ip, 900));
+
+        // Reach the cap → blocked
+        $this->assertSame(4, $rl->hit('test_login', $ip, 900));
+        $this->assertSame(5, $rl->hit('test_login', $ip, 900));
+        $this->assertTrue($rl->isBlocked('test_login', $ip, 5, 900));
+
+        // reset() clears the block
+        $rl->reset('test_login', $ip);
+        $this->assertFalse($rl->isBlocked('test_login', $ip, 5, 900));
+
+        $this->pdo->exec("DELETE FROM login_rate_limits WHERE bucket = 'test_login'");
     }
 
-    public function testPasswordHashIsLongEnough()
+    public function testRateLimitBucketsAreIsolated()
     {
-        $stmt = $this->pdo->query("SELECT password FROM admins LIMIT 1");
-        $admin = $stmt->fetch();
-        // bcrypt hashes are 60 characters
-        $this->assertGreaterThanOrEqual(60, strlen($admin['password']));
+        $this->pdo->exec("DELETE FROM login_rate_limits WHERE bucket LIKE 'test%'");
+
+        $rl = new \App\Middleware\RateLimit($this->pdo);
+        $ip = '203.0.113.100';
+
+        for ($i = 0; $i < 6; $i++) {
+            $rl->hit('test_magic', $ip, 900);
+        }
+
+        // Exhausted in the magic bucket, untouched in the 2fa bucket
+        $this->assertTrue($rl->isBlocked('test_magic', $ip, 5, 900));
+        $this->assertFalse($rl->isBlocked('test_2fa', $ip, 5, 900));
+
+        $this->pdo->exec("DELETE FROM login_rate_limits WHERE bucket LIKE 'test%'");
+    }
+
+    public function testRateLimitClientIpPrefersForwardedHeader()
+    {
+        $original = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? null;
+        $_SERVER['HTTP_CF_CONNECTING_IP'] = '198.51.100.7';
+        $this->assertSame('198.51.100.7', \App\Middleware\RateLimit::clientIp());
+
+        unset($_SERVER['HTTP_CF_CONNECTING_IP']);
+        $_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.8, 10.0.0.1';
+        $this->assertSame('198.51.100.8', \App\Middleware\RateLimit::clientIp());
+
+        unset($_SERVER['HTTP_X_FORWARDED_FOR']);
+        $_SERVER['REMOTE_ADDR'] = '198.51.100.9';
+        $this->assertSame('198.51.100.9', \App\Middleware\RateLimit::clientIp());
+
+        $_SERVER['REMOTE_ADDR'] = 'not-an-ip';
+        $this->assertSame('not-an-ip', \App\Middleware\RateLimit::clientIp());
+
+        // Restore
+        if ($original === null) {
+            unset($_SERVER['HTTP_CF_CONNECTING_IP']);
+        } else {
+            $_SERVER['HTTP_CF_CONNECTING_IP'] = $original;
+        }
     }
 
     // ==========================================

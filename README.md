@@ -24,6 +24,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 - 🔑 **Passwordless magic links** — HMAC-SHA256 signed tokens, **single-use** (atomic `INSERT … ON CONFLICT`), 10-minute expiry, no account-leaking responses.
 - 🛡️ **Optional TOTP 2FA** — RFC 6238, no external dependencies; enrollment requires proof-of-possession, disable requires the current code.
 - 🧾 **Server-side session registry** — every login recorded in `auth_sessions`; logout & "sign out other devices" revoke sessions instantly.
+- 🚦 **DB-backed IP rate limiting** — magic-link requests and 2FA attempts capped at 5/15 min, keyed on hashed IP (cookies can't reset it).
 - 👥 **Role-based access control** — `admin` (full), `editor` (create/edit), `viewer` (read-only), enforced server-side on the API **and** PHP admin pages.
 - 🐘 **PostgreSQL + PDO** — parameterized queries throughout, search/filter/pagination, image uploads with validation.
 - 🚀 **One-container deploy** — multi-stage Dockerfile builds the Vue SPA and serves it alongside PHP-FPM behind Nginx (same-origin, no CORS in production).
@@ -39,7 +40,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 | Backend | PHP 8.4, Nginx + PHP-FPM (Docker) |
 | Database | PostgreSQL 17 (Neon, managed) |
 | Email | Brevo SMTP (magic links) |
-| Testing | PHPUnit (51 tests / 99 assertions) |
+| Testing | PHPUnit (53 tests / 109 assertions) |
 | Hosting | Render (docker runtime) |
 
 ---
@@ -131,18 +132,23 @@ Render links a **Neon** Postgres via `DATABASE_URL`. Schema changes are **manual
 **Option A — Neon SQL Editor (easiest):**
 1. [console.neon.tech](https://console.neon.tech) → your project → **SQL Editor**.
 2. Paste `sql/migrations/2026_08_13_magic_link_security.sql` → **Run**.
+3. Repeat for `2026_08_14_drop_admins_password.sql` and `2026_08_14_login_rate_limits.sql`.
 
 **Option B — `psql` (local):**
 ```bash
 psql "postgresql://user:password@host:dbname?sslmode=require" \
   -f sql/migrations/2026_08_13_magic_link_security.sql
+psql "postgresql://user:password@host:dbname?sslmode=require" \
+  -f sql/migrations/2026_08_14_drop_admins_password.sql
+psql "postgresql://user:password@host:dbname?sslmode=require" \
+  -f sql/migrations/2026_08_14_login_rate_limits.sql
 ```
 Neon requires `sslmode=require`. Use the port **5432** (direct) connection string, not the `-pooler` one.
 
 **Option C — Render Shell:**
 Render dashboard → service → **Shell** → `psql "$DATABASE_URL"` and paste the SQL.
 
-Verify: `SELECT count(*) FROM auth_sessions;` (table must exist without error).
+Verify: `SELECT count(*) FROM auth_sessions;` and `SELECT count(*) FROM login_rate_limits;` (both must succeed without error).
 
 ---
 

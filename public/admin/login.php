@@ -17,6 +17,11 @@ CORS::handle();
 $pdo = Connection::getInstance();
 CSRF::init();
 
+// HIGH-4: IP-based rate limiting stored in the DB (session counters were
+// never incremented and could be reset by clearing cookies).
+$rateLimit = new \App\Middleware\RateLimit($pdo);
+$clientIp = \App\Middleware\RateLimit::clientIp();
+
 // Determine the response type: JSON for API requests, HTML for the page/form.
 $wantsJson = str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')
     || str_contains($_SERVER['CONTENT_TYPE'] ?? '', 'application/json');
@@ -28,8 +33,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
     if (!CSRF::verify($_POST['csrf_token'] ?? '')) {
         http_response_code(400);
         $magicError = 'Invalid CSRF token. Please reload and try again.';
+    } elseif ($rateLimit->isBlocked('magic', $clientIp, 5, 900)) {
+        http_response_code(429);
+        $magicError = 'Too many sign in requests. Please try again in 15 minutes.';
     } else {
         $magicEmail = strtolower(trim($_POST['magic_email']));
+        $rateLimit->hit('magic', $clientIp, 900);
 
         if (!filter_var($magicEmail, FILTER_VALIDATE_EMAIL)) {
             $magicError = 'Please enter a valid email address.';
@@ -148,6 +157,11 @@ if (isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
         die('No pending sign in. Please request a new magic link.');
     }
 
+    if ($rateLimit->isBlocked('2fa', $clientIp, 5, 900)) {
+        http_response_code(429);
+        die('Too many verification attempts. Please request a new magic link in 15 minutes.');
+    }
+
     if (!CSRF::verify($_POST['csrf_token'] ?? '')) {
         http_response_code(400);
         die('Invalid CSRF token. Please reload the page and try again.');
@@ -164,6 +178,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
     }
 
     if (Totp::verify($user['totp_secret'], $code)) {
+        $rateLimit->reset('2fa', $clientIp);
         $_SESSION['admin'] = $user['username'];
         $_SESSION['user_role'] = $user['role'] ?? 'editor';
         unset($_SESSION['pending_2fa_email'], $_SESSION['pending_2fa_username'], $_SESSION['pending_2fa_role']);
@@ -174,6 +189,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
         exit;
     }
 
+    $rateLimit->hit('2fa', $clientIp, 900);
     http_response_code(401);
     header('Content-Type: text/html; charset=UTF-8');
     render2faChallenge('Invalid verification code. Please try again.');
@@ -213,35 +229,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
     exit;
 }
 
-// HIGH-4: IP-based rate limiting (not session-based — session can be cleared)
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-$rateKey = "login_attempts_" . md5($ip);
-
-// Initialize rate limit counter in session if not set
-if (!isset($_SESSION[$rateKey])) {
-    $_SESSION[$rateKey] = ['count' => 0, 'time' => 0];
-}
-
-// Check rate limit (max 5 attempts per 15 minutes)
-$max_attempts = 5;
-$lockout_time = 15 * 60; // 15 minutes in seconds
-
-$current_time = time();
-
-// Check if user is locked out
-if ($_SESSION[$rateKey]['count'] >= $max_attempts && 
-    ($current_time - $_SESSION[$rateKey]['time']) < $lockout_time) {
-    $remaining = $lockout_time - ($current_time - $_SESSION[$rateKey]['time']);
-    die('Too many login attempts. Please try again in ' . ceil($remaining / 60) . ' minutes.');
-}
-
-// Rate limit key for magic link requests
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-$rateKey = "magic_attempts_" . md5($ip);
-
-if (!isset($_SESSION[$rateKey])) {
-    $_SESSION[$rateKey] = ['count' => 0, 'time' => 0];
-}
+// HIGH-4: IP-based rate limiting stored in the DB (session counters were
+// never incremented and could be reset by clearing cookies).
+$rateLimit = new \App\Middleware\RateLimit($pdo);
+$clientIp = \App\Middleware\RateLimit::clientIp();
 
 /**
  * Render the TOTP 2FA challenge page.

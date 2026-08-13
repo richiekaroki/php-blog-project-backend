@@ -32,7 +32,7 @@ Email in -> signed magic link emailed -> click link (single-use consume)
          -> redirected to /admin/blogs.php
 ```
 
-The `admins.password` column still exists in the schema for backward compatibility but is **not used** by any login path. See §8 for deprecation notes.
+The legacy `admins.password` column has been **dropped** (migration `2026_08_14_drop_admins_password.sql`) — no code path ever read or wrote it.
 
 ### 2.1 Key components
 
@@ -264,7 +264,7 @@ Apply in order:
 
 ## 10. Testing
 
-`tests/BlogTest.php` — **51 tests / 99 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, bcrypt hashes, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, and the new auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI.
+`tests/BlogTest.php` — **53 tests / 109 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, DB-backed IP rate limiting (block/isolate/forwarded-IP), and the auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI.
 
 ```bash
 vendor/bin/phpunit --testdox
@@ -276,10 +276,8 @@ vendor/bin/phpunit --testdox
 
 | Issue | Recommendation |
 |-------|----------------|
-| `admins.password` still in schema but unused | Drop the column in a future migration once confident no legacy path exists. |
 | Token travels in the URL (`?token=`) | Acceptable for 10-minute links; if logs are a concern, switch verify to a POST + short-lived pre-token. |
 | `render2faChallenge()` renders a separate standalone HTML page | Merge into the shared admin layout or a proper template if styling drift matters. |
 | Session lifetime is fixed (7 days) in `registerSession` | Make it configurable (`AUTH_SESSION_TTL`). |
-| No per-admin rate limit on 2FA attempts | Add a small attempt counter keyed on IP + pending email. |
 | `CSRF::init()` calls `session_start()` unconditionally | Guard with a `session_status()` check to avoid the notice when Auth already started the session. |
 | Activity log events for 2FA | Already logged (`2fa_enabled`, `2fa_disabled`, `magic_link_used` with `2fa` flag) — surface them in the UI when the admin feed returns. |

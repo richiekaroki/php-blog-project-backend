@@ -111,7 +111,7 @@ Layered defense-in-depth:
 
 ### 4.2 Request defenses
 - **CSRF** — per-session token on every state-changing form and API action.
-- **Rate limiting** — IP-based: magic-request 5/15 min (session) + global API 100 req/min/IP (temp file) with `X-RateLimit-*` headers.
+- **Rate limiting** — DB-backed, keyed on a SHA-256 hash of the client IP: magic-request 5/15 min and 2FA 5/15 min (`login_rate_limits`) + global API 100 req/min/IP (temp file) with `X-RateLimit-*` headers.
 - **Content-Type enforcement** — POST/PUT must be `application/json` (415 otherwise).
 - **Input validation** — email `FILTER_VALIDATE_EMAIL`, parameterized PDO everywhere (SQLi-safe), output `htmlspecialchars` (XSS-safe), `hash_equals` for all secret comparisons.
 
@@ -127,7 +127,7 @@ Layered defense-in-depth:
 ### 5.1 Core tables
 | Table | Purpose | Notable columns |
 |-------|---------|-----------------|
-| `admins` | Accounts | `username`, `email`, `password` (legacy/unused), `role` (`admin`/`editor`/`viewer`), `totp_secret` |
+| `admins` | Accounts | `username`, `email`, `role` (`admin`/`editor`/`viewer`), `totp_secret` |
 | `roles` / `user_roles` | Legacy role join | Reserved for future RBAC migration |
 | `blogs` | Posts | `title`, `slug`, `content`, `category_id`, `image`, `published`, timestamps |
 | `categories` | Taxonomy | `name`, `slug` |
@@ -140,12 +140,15 @@ magic_link_uses ( token_hash PK, email, used_at )      -- single-use tokens
 auth_sessions   ( id, admin_id FK→admins ON DELETE CASCADE,
                   session_token_hash UNIQUE, ip, user_agent,
                   expires_at, revoked_at, created_at )
+login_rate_limits ( bucket PK-part, ip_hash PK-part,     -- IP rate limiting
+                    attempt_count, window_start )
 ```
 - `magic_link_uses` is append-only; rows are never reused.
 - `auth_sessions` enables global device list + "sign out other devices" + instant revocation.
+- `login_rate_limits` (migration `2026_08_14_login_rate_limits`) stores attempt counters keyed on `sha256(bucket|ip)` so cookies can't reset them; IPs are not stored raw.
 
 ### 5.3 Migrations
-Apply in order: `ruru_schema.sql` → `2026_add_admin_email.sql` → `2026_08_13_create_invitations.sql` → `2026_08_13_magic_link_security.sql`. All new objects are idempotent (`IF NOT EXISTS`), safe to re-run.
+Apply in order: `ruru_schema.sql` → `2026_add_admin_email.sql` → `2026_08_13_create_invitations.sql` → `2026_08_13_magic_link_security.sql` → `2026_08_14_drop_admins_password.sql` → `2026_08_14_login_rate_limits.sql`. All new objects are idempotent (`IF NOT EXISTS`), safe to re-run.
 
 ---
 

@@ -3,9 +3,9 @@
 CREATE TABLE admins (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE,
-    role VARCHAR(50) DEFAULT 'editor'
+    role VARCHAR(50) DEFAULT 'editor',
+    totp_secret VARCHAR(255)
 );
 
 CREATE TABLE roles (
@@ -33,10 +33,9 @@ CREATE TABLE blogs (
 );
 
 -- Example admin for login (username: admin)
--- Password 'password' should be hashed using PHP: password_hash('password', PASSWORD_DEFAULT)
--- Example: INSERT INTO admins (username, password) VALUES ('admin', '$2y$10$...');
-INSERT INTO admins (username, password)
-VALUES ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4KzaCEoXf2uVEr59uRJ1uKwY ghost hasher$');
+-- Passwordless auth: admins sign in via magic links using their email.
+-- Insert a row with the admin's email, e.g.:
+-- INSERT INTO admins (username, email, role) VALUES ('admin', 'you@example.com', 'admin');
 
 -- Performance indexes
 CREATE INDEX IF NOT EXISTS idx_blogs_category_id ON blogs(category_id);
