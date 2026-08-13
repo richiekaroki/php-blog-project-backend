@@ -132,6 +132,9 @@ try {
         case 'magic':
             handleMagic($method, $pdo);
             break;
+        case 'signup-request':
+            handleSignupRequest($method, $pdo);
+            break;
         case 'profile':
             handleProfile($method, $pdo);
             break;
@@ -622,6 +625,58 @@ function handleMagic($method, $pdo) {
     }
 
     sendResponse(200, ['success' => true, 'message' => 'If that email is registered, a sign in link is on its way.']);
+}
+
+/**
+ * Handle a passwordless sign-up request.
+ * POST /api/signup-request  { "email": "..." }
+ *
+ * Stores a pending invitation token and emails a secure link to the owner.
+ * An admin later approves the request and the user becomes an admin.
+ */
+function handleSignupRequest($method, $pdo) {
+    if ($method !== 'POST') {
+        sendResponse(405, ['error' => 'Method not allowed']);
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    $email = strtolower(trim($data['email'] ?? ''));
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        sendResponse(400, ['error' => 'A valid email address is required']);
+    }
+
+    // If the visitor already has an account, redirect them to the normal magic-link sign-in.
+    $stmt = $pdo->prepare("SELECT id FROM admins WHERE LOWER(email) = ? LIMIT 1");
+    $stmt->execute([$email]);
+    if ($stmt->fetch()) {
+        sendResponse(200, [
+            'success' => true,
+            'message' => 'An account already exists for this email. We sent a sign in link to your inbox.',
+            'existing' => true
+        ]);
+        return;
+    }
+
+    // Create or re-use a pending invitation.
+    $token = bin2hex(random_bytes(32));
+    $expiresAt = (new \DateTime())->modify('+24 hours')->format('Y-m-d H:i:s');
+
+    try {
+        // Deactivate any previous unused invitations for this email.
+        $stmt = $pdo->prepare("UPDATE invitations SET accepted_at = NOW() WHERE email = ? AND accepted_at IS NULL AND expires_at > NOW()");
+        $stmt->execute([$email]);
+
+        $stmt = $pdo->prepare("INSERT INTO invitations (email, token, role, expires_at) VALUES (?, ?, 'editor', ?) ON CONFLICT (email) DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at");
+        $stmt->execute([$email, $token, $expiresAt]);
+
+        ActivityLog::log('signup_requested', 'invitation', null, ['email' => $email]);
+
+        sendResponse(200, ['success' => true, 'message' => 'An access request has been submitted. Check your inbox to activate your account.']);
+    } catch (\Throwable $e) {
+        error_log('Signup request failed: ' . $e->getMessage());
+        sendResponse(500, ['error' => 'Could not process your request. Please try again later.']);
+    }
 }
 
 function emailHtml(string $loginUrl): string {

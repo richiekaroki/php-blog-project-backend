@@ -58,6 +58,8 @@ All components reference these variables via `theme()` or Tailwind's custom util
 
 - Toggled via a `ThemeProvider` in Vue.  Preference persists in `localStorage` and respects `prefers-color-scheme`.
 - Dark theme variables override the light defaults using the `.dark` class.
+- **PHP login page** (`public/admin/login.php`) includes its own dark-mode toggle button (fixed top-right) with a `.dark` class on `<html>`. Dark overrides are defined inline in the `<style>` block.
+- Dark mode preference is persisted in `localStorage` and restored on page load.
 
 ## 5. Component Design
 
@@ -65,7 +67,27 @@ All components reference these variables via `theme()` or Tailwind's custom util
 - Common components: `Button`, `Card`, `Input`, `Select`, `Textarea`, `Toast`, `MarkdownEditor`.
 - Layout primitives: `AppLayout`, `Sidebar`, `Header`.
 
-## 6. Usage Example
+## 6. Authentication UI
+
+### Passwordless-First Login
+
+The default login flow is **magic link / passwordless**. Both the Vue SPA and the PHP admin pages open with the passwordless tab selected.
+
+- **Vue `LoginView.vue`**: Defaults to `mode = 'magic'`; shows email input and "Send me a secure link" button.
+- **PHP `login.php`**: Defaults `$magicMode = true`; the **Passwordless** tab is pre-selected.
+- After submission, the user sees a **"Check your inbox"** confirmation screen with a link to retry.
+
+### "Enter the blog" CTA
+
+The main call-to-action on the public landing page and navbar is labeled **Enter the blog** and routes to `/login` (Vue) or `/admin/login.php` (PHP).
+
+### Password Fallback
+
+A **Password** tab remains available as a fallback for existing admin users. The password hash is stored in the `admins` table but is **not required** for daily use.
+
+### Sign-Up Request
+
+New users request access via a `POST /api/signup-request` endpoint that stores a pending invitation in the `invitations` table and sends a confirmation email. An admin approves the request and the user is invited via magic link.
 
 ```html
 <div class="theme-bg theme-fg p-6 rounded-2xl shadow-lg">

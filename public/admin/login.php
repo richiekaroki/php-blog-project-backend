@@ -487,6 +487,59 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
             font-size: 0.875rem;
             margin-top: 1.5rem;
         }
+
+        .theme-toggle {
+            position: fixed;
+            top: 1.25rem;
+            right: 1.25rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.625rem;
+            background: var(--color-muted);
+            color: var(--color-foreground);
+            border: 1px solid var(--color-border);
+            cursor: pointer;
+            font-size: 1.125rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .theme-toggle:hover {
+            background: rgba(44, 87, 69, 0.08);
+        }
+
+        /* Dark mode overrides for the login page */
+        .dark body {
+            background: linear-gradient(135deg, #1A1708 0%, #3D3520 50%, #1A1708 100%);
+        }
+        .dark .nav { color: #EB7317; }
+        .dark .card {
+            background: #252010;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3), 0 2px 4px -1px rgba(0,0,0,0.2);
+        }
+        .dark .back-link { color: #A09580; }
+        .dark .back-link:hover { color: #3D7A63; }
+        .dark h1 { color: #EB7317; }
+        .dark .subtitle { color: #A09580; }
+        .dark input[type="text"],
+        .dark input[type="password"],
+        .dark input[type="email"] {
+            background: #2A2412;
+            border-color: #3D3520;
+            color: #EB7317;
+        }
+        .dark .btn-primary {
+            background: #3D7A63;
+            color: #fff;
+        }
+        .dark .mode-btn,
+        .dark .footer-text {
+            color: #A09580;
+        }
+        .dark .magic-sent {
+            background: rgba(61, 122, 99, 0.15);
+        }
     </style>
 </head>
 <body>
@@ -557,16 +610,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
                             <input type="email" name="magic_email" id="magic_email" required placeholder="you@example.com">
                         </div>
 
-                        <button type="submit" class="btn-primary">Email me a sign in link</button>
+                        <button type="submit" class="btn-primary">Send me a secure link</button>
                     </form>
                 <?php endif; ?>
             </div>
         </div>
         
-        <p class="footer-text">A place for thoughtful stories and ideas.</p>
-    </div>
+         <p class="footer-text">A place for thoughtful stories and ideas.</p>
+         <button id="theme-toggle" type="button" aria-label="Toggle dark mode" class="theme-toggle" title="Toggle dark mode">
+           🌙
+         </button>
+     </div>
 
     <script>
+        // Toggle dark mode (persists preference in localStorage)
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+        const themeToggle = document.getElementById('theme-toggle');
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        });
+
         function switchMode(mode) {
             const passwordTab = document.getElementById('tab-password');
             const magicTab = document.getElementById('tab-magic');

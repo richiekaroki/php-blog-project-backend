@@ -50,9 +50,12 @@ A secure PHP blog backend with admin panel, REST API, and PostgreSQL. Features r
 
 ## Auth
 
-- Username + password (bcrypt), or passwordless magic-link via Brevo SMTP
-- Session-based, CSRF-protected, rate-limited (5/15 min)
-- Magic links are stateless HMAC-SHA256 tokens signed with `APP_KEY` (15-min expiry)
+- **Passwordless-first**: Default login uses HMAC-SHA256 magic links via Brevo SMTP.
+- Password (bcrypt) is a fallback for existing admins; not required for daily use.
+- Session-based, CSRF-protected, rate-limited (5/15 min).
+- Magic links are stateless HMAC-SHA256 tokens signed with `APP_KEY` (15-min expiry).
+- **Sign-up request**: `POST /api/signup-request` allows new users to request access; stored in the `invitations` table; an admin approves and the user is invited via magic link.
+- **"Enter the blog"** CTA on the public landing page routes to `/login` (Vue) or `/admin/login.php` (PHP).
 
 ## Design System
 
@@ -66,7 +69,7 @@ See `DESIGN.md` for the complete token definitions and usage guidelines.
 # Backend
 composer install && cp .env.example .env   # add DB + SMTP keys
 psql -U postgres -c "CREATE DATABASE mizzle_backend;"
-psql -U postgres -d mizzle_backend -f sql/ruru_schema.sql -f sql/migrations/2026_add_admin_email.sql
+psql -U postgres -d mizzle_backend -f sql/ruru_schema.sql -f sql/migrations/2026_add_admin_email.sql -f sql/migrations/2026_08_13_create_invitations.sql
 
 # Frontend (Vue 3 SPA)
 cd frontend && npm install && npm run dev   # http://localhost:3000, proxies /api

@@ -137,11 +137,23 @@ async function handleMagicSubmit() {
 
           <!-- Magic link form -->
           <div v-else-if="mode === 'magic'" class="space-y-5">
-            <div v-if="magicSent" class="text-center py-4">
-              <CheckCircle2 class="h-12 w-12 text-forest-green mx-auto mb-3" />
-              <p class="text-muted-foreground text-sm leading-relaxed">
-                We sent a sign in link to <span class="font-medium text-foreground">{{ magicEmail }}</span>.
-                Click it to sign in. The link expires in 15 minutes.
+            <div v-if="magicSent" class="text-center py-6">
+              <CheckCircle2 class="h-16 w-16 text-forest-green mx-auto mb-4" />
+              <h3 class="font-display text-xl font-semibold text-foreground mb-2">Check your inbox</h3>
+              <p class="text-sm text-muted-foreground mb-4">
+                We sent a secure sign in link to
+                <span class="font-medium text-foreground">{{ magicEmail }}</span>.
+                Click it to get started. The link expires in 15 minutes.
+              </p>
+              <p class="text-sm text-muted-foreground">
+                Didn’t receive it? Check your spam folder or
+                <button
+                  @click="magicSent = false"
+                  type="button"
+                  class="text-forest-green hover:text-forest-green/80 font-medium underline"
+                >
+                  try again
+                </button>.
               </p>
             </div>
 
@@ -175,7 +187,7 @@ async function handleMagicSubmit() {
               >
                 <Loader2 v-if="magicLoading" class="mr-2 h-4 w-4 animate-spin" />
                 <ArrowRight v-else class="mr-2 h-4 w-4" />
-                {{ magicLoading ? 'Sending link...' : 'Email me a sign in link' }}
+                {{ magicLoading ? 'Sending link...' : 'Send me a secure link' }}
               </Button>
             </template>
           </div>
