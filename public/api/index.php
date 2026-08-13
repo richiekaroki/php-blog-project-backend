@@ -5,6 +5,7 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use App\Database\Connection;
 use App\Middleware\CORS;
+use App\Models\ActivityLog;
 
 CORS::handle();
 
@@ -119,8 +120,14 @@ try {
                 'uptime' => time(),
             ]);
             break;
+        case 'upload':
+            handleUpload($method, $pdo);
+            break;
+        case 'activity':
+            handleActivity($method);
+            break;
         default:
-            sendResponse(404, ['error' => 'Endpoint not found', 'available' => ['/api/blogs', '/api/categories', '/api/health']]);
+            sendResponse(404, ['error' => 'Endpoint not found', 'available' => ['/api/blogs', '/api/categories', '/api/health', '/api/upload', '/api/activity']]);
     }
 } catch (Exception $e) {
     error_log('API Error: ' . $e->getMessage());
@@ -230,6 +237,7 @@ function handleBlogs($method, $id, $pdo) {
             $stmt->execute([$title, $content, $image, $categoryId]);
             
             $newId = $pdo->lastInsertId();
+            ActivityLog::log('created', 'blog', (int)$newId, ['title' => $title]);
             sendResponse(201, ['success' => true, 'id' => $newId, 'message' => 'Blog created']);
             break;
             
@@ -286,6 +294,7 @@ function handleBlogs($method, $id, $pdo) {
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
             
+            ActivityLog::log('updated', 'blog', (int)$id, ['fields' => array_keys($updates)]);
             sendResponse(200, ['success' => true, 'message' => 'Blog updated']);
             break;
             
@@ -295,12 +304,19 @@ function handleBlogs($method, $id, $pdo) {
                 sendResponse(400, ['error' => 'Blog ID is required']);
             }
             
+            // Get blog title before deleting
+            $stmt = $pdo->prepare("SELECT title FROM blogs WHERE id = ?");
+            $stmt->execute([$id]);
+            $blog = $stmt->fetch();
+            
             $stmt = $pdo->prepare("DELETE FROM blogs WHERE id = ?");
             $stmt->execute([$id]);
             
             if ($stmt->rowCount() === 0) {
                 sendResponse(404, ['error' => 'Blog not found']);
             }
+            
+            ActivityLog::log('deleted', 'blog', (int)$id, ['title' => $blog['title'] ?? 'unknown']);
             
             sendResponse(200, ['success' => true, 'message' => 'Blog deleted']);
             break;
@@ -426,6 +442,77 @@ function handleCategories($method, $id, $pdo) {
 }
 
 /**
+ * Handle file upload
+ */
+function handleUpload($method, $pdo) {
+    if ($method !== 'POST') {
+        sendResponse(405, ['error' => 'Method not allowed']);
+    }
+    
+    // Check authentication
+    session_start();
+    if (!isset($_SESSION['admin'])) {
+        sendResponse(401, ['error' => 'Authentication required']);
+    }
+    
+    // Check if file was uploaded
+    if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        sendResponse(400, ['error' => 'No file uploaded or upload error']);
+    }
+    
+    $file = $_FILES['file'];
+    
+    // Validate file size (5MB max)
+    $maxSize = 5 * 1024 * 1024;
+    if ($file['size'] > $maxSize) {
+        sendResponse(400, ['error' => 'File too large. Maximum size is 5MB']);
+    }
+    
+    // Validate image content
+    $imageInfo = getimagesize($file['tmp_name']);
+    if ($imageInfo === false) {
+        sendResponse(400, ['error' => 'Invalid image file']);
+    }
+    
+    // Map MIME to extension
+    $mimeToExt = [
+        IMAGETYPE_JPEG => 'jpg',
+        IMAGETYPE_PNG  => 'png',
+        IMAGETYPE_GIF  => 'gif',
+        IMAGETYPE_WEBP => 'webp',
+    ];
+    $ext = $mimeToExt[$imageInfo[2]] ?? null;
+    if (!$ext) {
+        sendResponse(400, ['error' => 'Unsupported image type']);
+    }
+    
+    // Generate random filename
+    $filename = bin2hex(random_bytes(16)) . '.' . $ext;
+    $uploadDir = dirname(__DIR__) . '/uploads/';
+    
+    // Create uploads directory if it doesn't exist
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+    
+    $filepath = $uploadDir . $filename;
+    
+    // Move uploaded file
+    if (!move_uploaded_file($file['tmp_name'], $filepath)) {
+        sendResponse(500, ['error' => 'Failed to save file']);
+    }
+    
+    $url = '/uploads/' . $filename;
+    
+    sendResponse(201, [
+        'success' => true,
+        'url' => $url,
+        'filename' => $filename,
+        'message' => 'File uploaded successfully',
+    ]);
+}
+
+/**
  * Send JSON response with consistent format
  */
 function sendResponse($statusCode, $data) {
@@ -462,4 +549,19 @@ function setCacheHeaders($data, $maxAge = 60) {
         http_response_code(304);
         exit;
     }
+}
+
+/**
+ * Handle activity log
+ */
+function handleActivity($method) {
+    if ($method !== 'GET') {
+        sendResponse(405, ['error' => 'Method not allowed']);
+    }
+    
+    $limit = (int)($_GET['limit'] ?? 50);
+    $limit = min(max($limit, 1), 100);
+    
+    $activities = \App\Models\ActivityLog::getRecent($limit);
+    sendResponse(200, ['success' => true, 'data' => $activities]);
 }

@@ -41,3 +41,18 @@ VALUES ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4KzaCEoXf2uVEr59uRJ1uKwY ghost ha
 CREATE INDEX IF NOT EXISTS idx_blogs_category_id ON blogs(category_id);
 CREATE INDEX IF NOT EXISTS idx_blogs_id_desc ON blogs(id DESC);
 CREATE INDEX IF NOT EXISTS idx_categories_name ON categories(name);
+
+-- Activity log table
+CREATE TABLE IF NOT EXISTS activity_log (
+    id SERIAL PRIMARY KEY,
+    action VARCHAR(50) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id INT,
+    details JSONB,
+    user_ip INET,
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);
