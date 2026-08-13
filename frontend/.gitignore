@@ -33,3 +33,6 @@ coverage/
 
 # Temporary
 .cache/
+
+# Local config (not tracked)
+opencode.json

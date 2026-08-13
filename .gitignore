@@ -44,3 +44,7 @@ screencapture-*.png
 # Frontend build
 frontend/dist/
 frontend/node_modules/
+
+# Local config (not tracked)
+opencode.json
+frontend/opencode.json
