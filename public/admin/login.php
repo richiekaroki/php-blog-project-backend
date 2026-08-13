@@ -510,7 +510,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
 
              <div class="mode-toggle" role="tablist" aria-label="Sign in method">
                 <button type="button" id="tab-password" class="mode-btn<?php echo $magicMode ? '' : ' active'; ?>" role="tab" aria-selected="<?php echo $magicMode ? 'false' : 'true'; ?>" onclick="switchMode('password')">Password</button>
-                <button type="button" id="tab-magic" class="mode-btn<?php echo $magicMode ? ' active' : ''; ?>" role="tab" aria-selected="<?php echo $magicMode ? 'true' : 'false'; ?>" onclick="switchMode('magic')">Magic Link</button>
+                <button type="button" id="tab-magic" class="mode-btn<?php echo $magicMode ? ' active' : ''; ?>" role="tab" aria-selected="<?php echo $magicMode ? 'true' : 'false'; ?>" onclick="switchMode('magic')">Passwordless</button>
             </div>
 
             <!-- Password login -->
@@ -532,7 +532,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
                 </form>
             </div>
 
-            <!-- Magic Link: passwordless sign in -->
+            <!-- Passwordless sign in via email link -->
             <div id="panel-magic"<?php echo $magicMode ? '' : ' style="display: none;"'; ?>>
                 <?php if (!empty($magicSent)): ?>
                     <div class="magic-sent">

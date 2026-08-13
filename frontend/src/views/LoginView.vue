@@ -92,7 +92,7 @@ async function handleMagicSubmit() {
               class="flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors"
               :class="mode === 'magic' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
             >
-              Magic Link
+               Passwordless
             </button>
           </div>
 
