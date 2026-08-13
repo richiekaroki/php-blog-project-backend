@@ -6,6 +6,8 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 use App\Database\Connection;
 use App\Middleware\CORS;
 use App\Models\ActivityLog;
+use App\Auth\MagicLink;
+use App\Mail\Mailer;
 
 CORS::handle();
 
@@ -24,7 +26,8 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 // --- CRITICAL-1: Authentication for write operations ---
 $writeMethods = ['POST', 'PUT', 'DELETE'];
-if (in_array($method, $writeMethods)) {
+$isMagicRequest = ($_GET['action'] ?? '') === 'magic';
+if (in_array($method, $writeMethods) && !$isMagicRequest) {
     session_start();
     if (!isset($_SESSION['admin'])) {
         sendResponse(401, ['error' => 'Authentication required for write operations']);
@@ -125,6 +128,12 @@ try {
             break;
         case 'activity':
             handleActivity($method);
+            break;
+        case 'magic':
+            handleMagic($method, $pdo);
+            break;
+        case 'profile':
+            handleProfile($method, $pdo);
             break;
         default:
             sendResponse(404, ['error' => 'Endpoint not found', 'available' => ['/api/blogs', '/api/categories', '/api/health', '/api/upload', '/api/activity']]);
@@ -564,4 +573,187 @@ function handleActivity($method) {
     
     $activities = \App\Models\ActivityLog::getRecent($limit);
     sendResponse(200, ['success' => true, 'data' => $activities]);
+}
+
+/**
+ * Handle passwordless magic link requests.
+ * POST /api/magic/request  { "email": "..." }
+ */
+function handleMagic($method, $pdo) {
+    if ($method !== 'POST') {
+        sendResponse(405, ['error' => 'Method not allowed']);
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    $email = strtolower(trim($data['email'] ?? ''));
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        sendResponse(400, ['error' => 'A valid email address is required']);
+    }
+
+    // Look up admin by email (no password involved)
+    $stmt = $pdo->prepare("SELECT id, username, email FROM admins WHERE LOWER(email) = ? LIMIT 1");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+
+    // Always return the same generic response to avoid leaking which emails are registered.
+    if ($user) {
+        try {
+            $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 900);
+            $magic = new MagicLink();
+            $token = $magic->create($email, $ttl);
+
+            $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
+            $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
+
+            $mailer = new Mailer();
+            $mailer->send(
+                $email,
+                'Your WAM Blog sign in link',
+                $emailHtml($loginUrl),
+                "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
+            );
+
+            ActivityLog::log('magic_link_sent', 'auth', (int)$user['id'], ['email' => $email]);
+        } catch (\Throwable $e) {
+            error_log('Magic link send failed: ' . $e->getMessage());
+            sendResponse(500, ['error' => 'Could not send the sign in link. Please try again later.']);
+        }
+    }
+
+    sendResponse(200, ['success' => true, 'message' => 'If that email is registered, a sign in link is on its way.']);
+}
+
+function emailHtml(string $loginUrl): string {
+    $safeUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
+    return '<!DOCTYPE html><html><body style="font-family:Georgia,serif;background:#FBF9F1;color:#2E2910;padding:24px;text-align:center;">'
+        . '<h1 style="color:#2C5745;">Sign in to WAM Blog</h1>'
+        . '<p>Click the button below to sign in. This link is valid for 15 minutes.</p>'
+        . '<a href="' . $safeUrl . '" style="display:inline-block;margin:16px auto;padding:12px 24px;background:#2C5745;color:#fff;text-decoration:none;border-radius:8px;">Sign In</a>'
+        . '<p style="color:#5C5340;font-size:14px;">If you did not request this, you can safely ignore this email.</p>'
+        . '</body></html>';
+}
+
+/**
+ * Handle the signed-in admin's own profile.
+ * GET  /api/profile              -> fetch username, email, role
+ * PUT  /api/profile {username?, email?}
+ * PUT  /api/profile {current_password, new_password} -> change password
+ */
+function handleProfile($method, $pdo) {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+    if (!isset($_SESSION['admin'])) {
+        sendResponse(401, ['error' => 'Authentication required']);
+    }
+
+    $username = $_SESSION['admin'];
+
+    if ($method === 'GET') {
+        $stmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE username = ? LIMIT 1");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
+        if (!$user) {
+            sendResponse(404, ['error' => 'Account not found']);
+        }
+        sendResponse(200, ['success' => true, 'data' => $user]);
+    }
+
+    if ($method !== 'PUT') {
+        sendResponse(405, ['error' => 'Method not allowed']);
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($data)) {
+        sendResponse(400, ['error' => 'Invalid JSON data']);
+    }
+
+    $stmt = $pdo->prepare("SELECT * FROM admins WHERE username = ? LIMIT 1");
+    $stmt->execute([$username]);
+    $user = $stmt->fetch();
+    if (!$user) {
+        sendResponse(404, ['error' => 'Account not found']);
+    }
+
+    $changes = [];
+
+    // --- Password change flow ---
+    $changingPassword = isset($data['current_password']) || isset($data['new_password']);
+    if ($changingPassword) {
+        if (!isset($data['current_password'], $data['new_password'])) {
+            sendResponse(400, ['error' => 'Current and new password are both required']);
+        }
+        if (!password_verify($data['current_password'], $user['password'])) {
+            sendResponse(400, ['error' => 'Current password is incorrect']);
+        }
+        $newPassword = $data['new_password'];
+        if (strlen($newPassword) < 8) {
+            sendResponse(400, ['error' => 'New password must be at least 8 characters']);
+        }
+        $stmt = $pdo->prepare("UPDATE admins SET password = ? WHERE id = ?");
+        $stmt->execute([password_hash($newPassword, PASSWORD_DEFAULT), $user['id']]);
+        $changes[] = 'password';
+    }
+
+    // --- Profile field updates ---
+    $updates = [];
+    $params = [];
+
+    if (array_key_exists('username', $data)) {
+        $newUsername = strip_tags(trim((string)$data['username']));
+        if ($newUsername === '' || strlen($newUsername) > 50) {
+            sendResponse(400, ['error' => 'Username must be 1-50 characters']);
+        }
+        if ($newUsername !== $user['username']) {
+            $dup = $pdo->prepare("SELECT id FROM admins WHERE LOWER(username) = ? AND id != ? LIMIT 1");
+            $dup->execute([strtolower($newUsername), $user['id']]);
+            if ($dup->fetch()) {
+                sendResponse(400, ['error' => 'Username is already taken']);
+            }
+            $updates[] = "username = ?";
+            $params[] = $newUsername;
+        }
+    }
+
+    if (array_key_exists('email', $data)) {
+        $email = strtolower(trim((string)$data['email']));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            sendResponse(400, ['error' => 'A valid email address is required']);
+        }
+        if ($email !== ($user['email'] ?? '')) {
+            $dup = $pdo->prepare("SELECT id FROM admins WHERE LOWER(email) = ? AND id != ? LIMIT 1");
+            $dup->execute([$email, $user['id']]);
+            if ($dup->fetch()) {
+                sendResponse(400, ['error' => 'Email is already in use']);
+            }
+            $updates[] = "email = ?";
+            $params[] = $email;
+        }
+    }
+
+    if ($updates) {
+        $params[] = $user['id'];
+        $sql = "UPDATE admins SET " . implode(', ', $updates) . " WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+
+        if (array_key_exists('username', $data) && in_array('username = ?', $updates)) {
+            $_SESSION['admin'] = $params[array_search('username = ?', $updates)];
+        }
+        $changes = array_merge($changes, array_map(fn($u) => str_replace(' = ?', '', $u), $updates));
+    }
+
+    ActivityLog::log('profile_updated', 'admin', (int)$user['id'], ['fields' => $changes]);
+
+    // Re-fetch the current profile so the response always reflects the DB.
+    $stmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE id = ? LIMIT 1");
+    $stmt->execute([$user['id']]);
+    $fresh = $stmt->fetch();
+
+    sendResponse(200, [
+        'success' => true,
+        'message' => 'Profile updated',
+        'data' => $fresh,
+    ]);
 }

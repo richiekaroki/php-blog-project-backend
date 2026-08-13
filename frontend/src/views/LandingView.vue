@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { api } from '@/composables/useApi'
+import { api } from '@/api/client'
+import { useDarkMode } from '@/composables/useDarkMode'
 import type { Blog, Category } from '@/types'
 import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
 import CardContent from '@/components/ui/CardContent.vue'
+import GetStartedModal from '@/features/landing/GetStartedModal.vue'
 import { RouterLink } from 'vue-router'
-import { ArrowRight, BookOpen, Feather, Sparkles, PenLine } from 'lucide-vue-next'
+import { ArrowRight, BookOpen, PenLine, Sparkles, Sun, Moon, Heart, EyeOff, Palette } from 'lucide-vue-next'
 
 const blogs = ref<Blog[]>([])
 const categories = ref<Category[]>([])
 const loading = ref(true)
+const showGetStarted = ref(false)
+const { isDark, toggle } = useDarkMode()
+
+const liveBlogBase = 'https://php-blog-backend.onrender.com'
 
 onMounted(async () => {
   try {
@@ -26,12 +32,6 @@ onMounted(async () => {
     loading.value = false
   }
 })
-
-const features = [
-  { icon: BookOpen, title: 'Curated Stories', desc: 'Thoughtfully crafted articles on topics that matter' },
-  { icon: Feather, title: 'Clean Writing', desc: 'Distraction free reading with beautiful typography' },
-  { icon: Sparkles, title: 'Fresh Perspectives', desc: 'New ideas and insights published regularly' },
-]
 </script>
 
 <template>
@@ -45,11 +45,26 @@ const features = [
           </div>
           <span class="font-display font-semibold text-xl text-foreground">WAM Blog</span>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-3">
+          <button
+            @click="toggle"
+            class="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            :title="isDark ? 'Light mode' : 'Dark mode'"
+            aria-label="Toggle theme"
+          >
+            <Sun v-if="isDark" class="h-5 w-5" />
+            <Moon v-else class="h-5 w-5" />
+          </button>
           <RouterLink to="/login">
             <Button variant="ghost" class="text-muted-foreground hover:text-foreground">Sign In</Button>
           </RouterLink>
-          <a href="https://php-blog-backend.onrender.com" target="_blank">
+          <Button
+            @click="showGetStarted = true"
+            class="bg-forest-green hover:bg-forest-green/90 text-white"
+          >
+            Get Started
+          </Button>
+          <a :href="liveBlogBase" target="_blank" rel="noopener noreferrer">
             <Button variant="outline" class="border-forest-green/30 text-forest-green hover:bg-forest-green hover:text-white">Read Blog</Button>
           </a>
         </div>
@@ -77,12 +92,10 @@ const features = [
               <ArrowRight class="ml-2 h-4 w-4" />
             </Button>
           </a>
-          <RouterLink to="/login">
-            <Button size="lg" variant="ghost" class="text-muted-foreground">
-              <PenLine class="mr-2 h-4 w-4" />
-              Write for us
-            </Button>
-          </RouterLink>
+          <Button size="lg" variant="outline" @click="showGetStarted = true" class="border-forest-green/30 text-forest-green hover:bg-forest-green hover:text-white">
+            <PenLine class="mr-2 h-4 w-4" />
+            Get Started
+          </Button>
         </div>
       </div>
     </section>
@@ -95,7 +108,7 @@ const features = [
             <h2 class="font-display text-3xl font-bold text-dark-olive mb-1">Featured Stories</h2>
             <p class="text-muted-foreground">Handpicked articles we think you'll enjoy</p>
           </div>
-          <a href="https://php-blog-backend.onrender.com" target="_blank" class="text-forest-green hover:text-forest-green/80 font-medium flex items-center gap-1">
+          <a :href="liveBlogBase" target="_blank" rel="noopener noreferrer" class="text-forest-green hover:text-forest-green/80 font-medium flex items-center gap-1">
             View all
             <ArrowRight class="h-4 w-4" />
           </a>
@@ -110,10 +123,12 @@ const features = [
         </div>
 
         <div v-else-if="blogs.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <RouterLink
+          <a
             v-for="blog in blogs.slice(0, 3)"
             :key="blog.id"
-            :to="`/post/${blog.id}`"
+            :href="`${liveBlogBase}/post.php?id=${blog.id}`"
+            target="_blank"
+            rel="noopener noreferrer"
             class="group"
           >
             <Card class="h-full border-0 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden bg-card rounded-2xl">
@@ -140,7 +155,7 @@ const features = [
                 </p>
               </CardContent>
             </Card>
-          </RouterLink>
+          </a>
         </div>
 
         <div v-else class="text-center py-14 bg-card border border-border/50 rounded-2xl">
@@ -162,15 +177,15 @@ const features = [
         </p>
         <div class="flex items-center justify-center gap-8 text-sm text-muted-foreground flex-wrap">
           <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-forest-green"></div>
+            <Heart class="h-4 w-4 text-forest-green" />
             <span>Thoughtful content</span>
           </div>
           <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-warm-orange"></div>
+            <EyeOff class="h-4 w-4 text-warm-orange" />
             <span>No distractions</span>
           </div>
           <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-dark-olive"></div>
+            <Palette class="h-4 w-4 text-dark-olive" />
             <span>Clean design</span>
           </div>
         </div>
@@ -213,11 +228,13 @@ const features = [
             Crafted with care for readers who appreciate quality content.
           </p>
           <div class="flex items-center gap-6 text-sm text-muted-foreground">
-            <a href="https://github.com/richiekaroki/php-blog-project-backend" class="hover:text-forest-green transition-colors">GitHub</a>
-            <a href="https://php-blog-backend.onrender.com" class="hover:text-forest-green transition-colors">Live Demo</a>
+            <a href="https://github.com/richiekaroki/php-blog-project-backend" target="_blank" rel="noopener noreferrer" class="hover:text-forest-green transition-colors">GitHub</a>
+            <a :href="liveBlogBase" target="_blank" rel="noopener noreferrer" class="hover:text-forest-green transition-colors">Live Demo</a>
           </div>
         </div>
       </div>
     </footer>
+
+    <GetStartedModal v-if="showGetStarted" @close="showGetStarted = false" />
   </div>
 </template>

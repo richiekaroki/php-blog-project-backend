@@ -1,0 +1,102 @@
+<?php
+
+namespace App\Auth;
+
+/**
+ * Stateless magic link tokens signed with APP_KEY (HMAC-SHA256).
+ * No token is stored in the database — each link carries its own
+ * signed payload (email + expiry) and is verified on click.
+ */
+class MagicLink
+{
+    private string $secret;
+
+    public function __construct(?string $secret = null)
+    {
+        $secret = $secret ?: self::appKey();
+        if ($secret === '' || $secret === null) {
+            throw new \RuntimeException('APP_KEY is required to sign magic links.');
+        }
+        // Support base64: prefixed keys (Laravel-style) and raw keys.
+        $this->secret = str_starts_with($secret, 'base64:')
+            ? base64_decode(substr($secret, 7))
+            : $secret;
+    }
+
+    public function create(string $email, int $ttlSeconds = 900): string
+    {
+        $payload = $this->encodePayload([
+            'email' => strtolower(trim($email)),
+            'exp' => time() + $ttlSeconds,
+        ]);
+        $signature = hash_hmac('sha256', $payload, $this->secret);
+        return $payload . '.' . $signature;
+    }
+
+    /**
+     * Verify a token. Returns the email if valid and unexpired, else null.
+     */
+    public function verify(string $token): ?string
+    {
+        $parts = explode('.', $token);
+        if (count($parts) !== 2) {
+            return null;
+        }
+
+        [$payload, $signature] = $parts;
+
+        $expected = hash_hmac('sha256', $payload, $this->secret);
+        if (!hash_equals($expected, $signature)) {
+            return null;
+        }
+
+        $data = $this->decodePayload($payload);
+        if ($data === null || empty($data['email']) || empty($data['exp'])) {
+            return null;
+        }
+
+        if ((int)$data['exp'] < time()) {
+            return null;
+        }
+
+        return strtolower(trim($data['email']));
+    }
+
+    private function encodePayload(array $data): string
+    {
+        return rtrim(strtr(base64_encode(json_encode($data)), '+/', '-_'), '=');
+    }
+
+    private function decodePayload(string $payload): ?array
+    {
+        $json = base64_decode(strtr($payload, '-_', '+/'));
+        if ($json === false) {
+            return null;
+        }
+        $data = json_decode($json, true);
+        return is_array($data) ? $data : null;
+    }
+
+    private static function appKey(): string
+    {
+        foreach (['APP_KEY'] as $key) {
+            if (!empty($_SERVER[$key])) return $_SERVER[$key];
+            if (!empty($_ENV[$key])) return $_ENV[$key];
+            $value = getenv($key);
+            if ($value !== false && $value !== '') return $value;
+        }
+
+        $envFile = dirname(__DIR__, 2) . '/.env';
+        if (file_exists($envFile)) {
+            foreach (file($envFile) as $line) {
+                if (trim($line) === '' || trim($line)[0] === '#') continue;
+                $parts = explode('=', $line, 2);
+                if (count($parts) === 2 && trim($parts[0]) === 'APP_KEY') {
+                    return trim(trim($parts[1]), '"');
+                }
+            }
+        }
+
+        return '';
+    }
+}

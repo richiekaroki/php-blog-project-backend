@@ -11,5 +11,15 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://php-blog-backend-project.test',
+        changeOrigin: true,
+      },
+      '/admin/login.php': {
+        target: 'http://php-blog-backend-project.test',
+        changeOrigin: true,
+      },
+    },
   },
 })

@@ -7,6 +7,7 @@ import {
   Tag,
   LogOut,
   X,
+  User,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -20,6 +21,7 @@ const navItems = [
   { name: 'Dashboard', route: '/admin', icon: LayoutDashboard },
   { name: 'Blogs', route: '/admin/blogs', icon: FileText },
   { name: 'Categories', route: '/admin/categories', icon: Tag },
+  { name: 'Profile', route: '/admin/profile', icon: User },
 ]
 </script>
 

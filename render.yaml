@@ -9,5 +9,22 @@ services:
         value: production
       - key: APP_DEBUG
         value: "false"
+      - key: APP_URL
+        value: https://php-blog-backend.onrender.com
       - key: DB_CONNECTION
         value: pgsql
+      # APP_KEY signs magic links — set this in the Render dashboard (32 random bytes, base64: prefix).
+      # Without it, passwordless sign-in throws "APP_KEY is required to sign magic links."
+      - key: MAIL_HOST
+        value: smtp-relay.brevo.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        value: b4bec8001@smtp-brevo.com
+      # Set MAIL_PASSWORD (SMTP key) in the Render dashboard — never commit secrets.
+      - key: MAIL_FROM_ADDRESS
+        value: noreply@wamblog.com
+      - key: MAIL_FROM_NAME
+        value: WAM Blog
+      - key: MAGIC_LINK_TTL
+        value: "900"

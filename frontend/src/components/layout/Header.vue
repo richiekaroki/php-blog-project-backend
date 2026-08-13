@@ -14,6 +14,7 @@ const pageTitle: Record<string, string> = {
   '/admin': 'Dashboard',
   '/admin/blogs': 'Blog Management',
   '/admin/categories': 'Category Management',
+  '/admin/profile': 'Profile',
 }
 </script>
 

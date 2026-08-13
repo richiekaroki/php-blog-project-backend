@@ -1,6 +1,7 @@
 export interface User {
-  id: number
+  id: number | null
   username: string
+  email: string | null
   role: 'admin' | 'editor' | 'viewer'
 }
 

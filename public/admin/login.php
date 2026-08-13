@@ -6,6 +6,7 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 use App\Database\Connection;
 use App\Middleware\CSRF;
 use App\Middleware\CORS;
+use App\Auth\MagicLink;
 
 CORS::handle();
 header('Content-Type: application/json');
@@ -13,13 +14,69 @@ header('Content-Type: application/json');
 $pdo = Connection::getInstance();
 CSRF::init();
 
+// Handle magic link verification (passwordless sign in)
+if (isset($_GET['action']) && $_GET['action'] === 'magic') {
+    $token = $_GET['token'] ?? '';
+    if ($token === '') {
+        http_response_code(400);
+        die('Missing token.');
+    }
+
+    $magic = new MagicLink();
+    $email = $magic->verify($token);
+
+    if ($email === null) {
+        http_response_code(401);
+        die('This sign in link is invalid or has expired. Please request a new one.');
+    }
+
+    $stmt = $pdo->prepare("SELECT * FROM admins WHERE LOWER(email) = ? LIMIT 1");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        http_response_code(401);
+        die('No account is linked to that email.');
+    }
+
+    $_SESSION['admin'] = $user['username'];
+    $_SESSION['user_role'] = $user['role'] ?? 'editor';
+    session_regenerate_id(true);
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+    if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+        echo json_encode([
+            'success' => true,
+            'user' => [
+                'id' => (int)$user['id'],
+                'username' => $user['username'],
+                'email' => $user['email'] ?? null,
+                'role' => $user['role'] ?? 'editor',
+            ]
+        ]);
+    } else {
+        header("Location: blogs.php");
+    }
+    exit;
+}
+
 // Handle auth status check (for Vue frontend)
 if (isset($_GET['action']) && $_GET['action'] === 'status') {
     if (isset($_SESSION['admin'])) {
+        $stmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE username = ? LIMIT 1");
+        $stmt->execute([$_SESSION['admin']]);
+        $user = $stmt->fetch();
         echo json_encode([
             'authenticated' => true,
-            'user' => [
+            'user' => $user ? [
+                'id' => (int)$user['id'],
+                'username' => $user['username'],
+                'email' => $user['email'] ?? null,
+                'role' => $user['role'] ?? 'editor',
+            ] : [
+                'id' => null,
                 'username' => $_SESSION['admin'],
+                'email' => null,
                 'role' => $_SESSION['user_role'] ?? 'editor',
             ]
         ]);
@@ -100,7 +157,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             echo json_encode([
                 'success' => true,
                 'user' => [
-                    'username' => $username,
+                    'id' => (int)$user['id'],
+                    'username' => $user['username'],
+                    'email' => $user['email'] ?? null,
                     'role' => $user['role'] ?? 'editor',
                 ]
             ]);
