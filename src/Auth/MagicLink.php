@@ -23,7 +23,7 @@ class MagicLink
             : $secret;
     }
 
-    public function create(string $email, int $ttlSeconds = 900): string
+    public function create(string $email, int $ttlSeconds = 600): string
     {
         $payload = $this->encodePayload([
             'email' => strtolower(trim($email)),
@@ -60,6 +60,36 @@ class MagicLink
         }
 
         return strtolower(trim($data['email']));
+    }
+
+    /**
+     * Atomically mark a token as used. Returns true if this call won the race
+     * (i.e. the token was NOT previously redeemed), false if it was already used.
+     *
+     * The PRIMARY KEY on magic_link_uses.token_hash makes the check-and-set
+     * atomic: concurrent redeems of the same token result in exactly one winner.
+     */
+    public function consume(\PDO $pdo, string $token): bool
+    {
+        $email = $this->verify($token);
+        if ($email === null) {
+            return false;
+        }
+
+        $stmt = $pdo->prepare(
+            "INSERT INTO magic_link_uses (token_hash, email) VALUES (?, ?) ON CONFLICT (token_hash) DO NOTHING"
+        );
+        $stmt->execute([self::tokenHash($token), $email]);
+
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * Stable SHA-256 identifier for a raw token (used as the table key).
+     */
+    public static function tokenHash(string $token): string
+    {
+        return hash('sha256', $token);
     }
 
     private function encodePayload(array $data): string
