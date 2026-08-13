@@ -1,4 +1,4 @@
-# WAM Blog Backend
+# WAM Blog
 
 [![CI](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml/badge.svg)](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml)
 [![Tests](https://img.shields.io/badge/tests-41%20passed-brightgreen)](#testing)
@@ -6,7 +6,7 @@
 [![Vue](https://img.shields.io/badge/Vue-3-42b883?logo=vue.js)](#)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql)](#)
 
-A secure blog with a **Vue 3 + TypeScript admin frontend**, PHP REST API, and PostgreSQL. Features passwordless magic-link sign-in, profile management, dark mode, and OWASP-minded security.
+A secure PHP blog backend with admin panel, REST API, and PostgreSQL. Features role-based access control, image uploads, search/filter pagination, and hardened security (CSRF, XSS prevention, rate limiting, session hardening). Runs on Laravel Herd.
 
 **Live Demo:** https://php-blog-backend.onrender.com
 
