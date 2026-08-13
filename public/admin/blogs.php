@@ -11,11 +11,13 @@ Auth::check();
 $pdo = Connection::getInstance();
 CSRF::init();
 
-// Role check: admin full access, editor can edit, viewer denied
-if ($_SESSION['user_role'] !== 'admin') {
-    header("Location: index.php");
-    exit;
-}
+// Role model:
+//   admin  = full access (create, edit, delete)
+//   editor = create + edit, but NO delete
+//   viewer = read-only (no create/edit/delete)
+$currentRole = Auth::getRole() ?? 'viewer';
+$canWrite = in_array($currentRole, ['admin', 'editor'], true);
+$canDelete = $currentRole === 'admin';
 
 // Create uploads directory if it doesn't exist
 $uploadDir = __DIR__ . '/../uploads/';
@@ -23,8 +25,13 @@ if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
 
-// Handle DELETE
+// Handle DELETE (admin only)
 if (isset($_GET['delete'])) {
+    if (!$canDelete) {
+        http_response_code(403);
+        die('Access denied: only admins can delete posts.');
+    }
+
     $id = (int)$_GET['delete'];
     
     // Get image path before deleting
@@ -47,8 +54,13 @@ if (isset($_GET['delete'])) {
     exit;
 }
 
-// Handle form submissions
+// Handle form submissions (create/edit — admin and editor)
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (!$canWrite) {
+        http_response_code(403);
+        die('Access denied: your role does not permit writing posts.');
+    }
+
     if (!isset($_POST['csrf_token']) || 
         $_POST['csrf_token'] !== $_SESSION['csrf_token'] ||
         hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']) === false) {
@@ -505,7 +517,7 @@ $categories = $catStmt->fetchAll();
                 </a>
             </nav>
             <div style="padding: 1rem; border-top: 1px solid var(--border);">
-                <a href="?action=logout" class="nav-item" style="color: var(--destructive);">
+                <a href="login.php?action=logout" class="nav-item" style="color: var(--destructive);">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
                     Logout
                 </a>
@@ -522,7 +534,8 @@ $categories = $catStmt->fetchAll();
             </header>
 
             <div class="content">
-                <!-- Add Blog Form -->
+                <!-- Add Blog Form (admin + editor only) -->
+                <?php if ($canWrite): ?>
                 <div class="card">
                     <div class="card-header">
                         <h2>Create New Post</h2>
@@ -569,6 +582,7 @@ $categories = $catStmt->fetchAll();
                         </form>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Blogs Table -->
                 <div class="card">
@@ -610,8 +624,12 @@ $categories = $catStmt->fetchAll();
                                         <td><span class="tag"><?php echo htmlspecialchars($blog['category_name'] ?? 'Uncategorized'); ?></span></td>
                                         <td>
                                             <div style="display: flex; gap: 0.5rem;">
+                                                <?php if ($canWrite): ?>
                                                 <a href="edit-blog.php?id=<?php echo $blog['id']; ?>" class="btn btn-outline btn-sm">Edit</a>
+                                                <?php endif; ?>
+                                                <?php if ($canDelete): ?>
                                                 <button class="btn btn-danger btn-sm" onclick="confirmDelete(<?php echo $blog['id']; ?>, <?php echo htmlspecialchars(json_encode($blog['title']), ENT_QUOTES, 'UTF-8'); ?>)">Delete</button>
+                                                <?php endif; ?>
                                             </div>
                                         </td>
                                     </tr>

@@ -11,14 +11,21 @@ Auth::check();
 $pdo = Connection::getInstance();
 CSRF::init();
 
-// Role check: admin full access, editor can edit, viewer denied
-if ($_SESSION['user_role'] !== 'admin') {
-    header("Location: index.php");
-    exit;
-}
+// Role model:
+//   admin  = full access (create, edit, delete)
+//   editor = create + edit, but NO delete
+//   viewer = read-only (no create/edit/delete)
+$currentRole = Auth::getRole() ?? 'viewer';
+$canWrite = in_array($currentRole, ['admin', 'editor'], true);
+$canDelete = $currentRole === 'admin';
 
-// Handle DELETE
+// Handle DELETE (admin only)
 if (isset($_GET['delete'])) {
+    if (!$canDelete) {
+        http_response_code(403);
+        die('Access denied: only admins can delete categories.');
+    }
+
     $id = (int)$_GET['delete'];
     $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
     $stmt->execute([$id]);
@@ -26,8 +33,13 @@ if (isset($_GET['delete'])) {
     exit;
 }
 
-// Handle form submission (add/edit)
+// Handle form submission (add/edit — admin and editor)
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (!$canWrite) {
+        http_response_code(403);
+        die('Access denied: your role does not permit editing categories.');
+    }
+
     if (!isset($_POST['csrf_token']) || 
         $_POST['csrf_token'] !== $_SESSION['csrf_token'] ||
         hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']) === false) {
@@ -174,7 +186,7 @@ if (isset($_GET['edit'])) {
                 </a>
             </nav>
             <div style="padding: 1rem; border-top: 1px solid var(--border);">
-                <a href="?action=logout" class="nav-item" style="color: var(--destructive);">
+                <a href="login.php?action=logout" class="nav-item" style="color: var(--destructive);">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
                     Logout
                 </a>
@@ -186,7 +198,8 @@ if (isset($_GET['edit'])) {
                 <h1 class="header-title">Categories</h1>
             </header>
             <div class="content">
-                <!-- Add/Edit Category Form -->
+                <!-- Add/Edit Category Form (admin + editor only) -->
+                <?php if ($canWrite): ?>
                 <div class="card">
                     <div class="card-header">
                         <h2><?php echo isset($_GET['edit']) ? 'Edit Category' : 'Create Category'; ?></h2>
@@ -230,6 +243,7 @@ if (isset($_GET['edit'])) {
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php endif; ?>
 
                 <!-- Categories List -->
                 <div class="card">
@@ -256,8 +270,12 @@ if (isset($_GET['edit'])) {
                                     <td style="color: var(--muted-fg);"><?php echo htmlspecialchars($cat['description'] ?: '—'); ?></td>
                                     <td>
                                         <div style="display: flex; gap: 0.5rem;">
+                                            <?php if ($canWrite): ?>
                                             <a href="?edit=<?php echo $cat['id']; ?>" class="btn btn-outline btn-sm">Edit</a>
+                                            <?php endif; ?>
+                                            <?php if ($canDelete): ?>
                                             <button class="btn btn-danger btn-sm" onclick="if(confirm('Delete this category?')) window.location='categories.php?delete=<?php echo $cat['id']; ?>'">Delete</button>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>

@@ -4,10 +4,13 @@
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use App\Database\Connection;
+use App\Middleware\Auth;
 use App\Middleware\CSRF;
 use App\Middleware\CORS;
 use App\Auth\MagicLink;
+use App\Auth\Totp;
 use App\Mail\Mailer;
+use App\Models\ActivityLog;
 
 CORS::handle();
 
@@ -38,7 +41,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
             // Always show the same generic confirmation to avoid revealing registered emails.
             if ($user) {
                 try {
-                    $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 900);
+                    $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
                     $magic = new MagicLink();
                     $token = $magic->create($magicEmail, $ttl);
 
@@ -48,7 +51,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
 
                     $htmlBody = '<!DOCTYPE html><html><body style="font-family:Georgia,serif;background:#FBF9F1;color:#2E2910;padding:24px;text-align:center;">'
                         . '<h1 style="color:#2C5745;">Sign in to WAM Blog</h1>'
-                        . '<p>Click the button below to sign in. This link is valid for 15 minutes.</p>'
+                        . '<p>Click the button below to sign in. This link is valid for 10 minutes.</p>'
                         . '<a href="' . $safeUrl . '" style="display:inline-block;margin:16px auto;padding:12px 24px;background:#2C5745;color:#fff;text-decoration:none;border-radius:8px;">Sign In</a>'
                         . '<p style="color:#5C5340;font-size:14px;">If you did not request this, you can safely ignore this email.</p>'
                         . '</body></html>';
@@ -89,6 +92,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'magic') {
         die('This sign in link is invalid or has expired. Please request a new one.');
     }
 
+    // Single-use: atomically consume the token. A token that was already
+    // redeemed (even by the legitimate user) is rejected.
+    if (!$magic->consume($pdo, $token)) {
+        http_response_code(401);
+        die('This sign in link has already been used. Please request a new one.');
+    }
+
     $stmt = $pdo->prepare("SELECT * FROM admins WHERE LOWER(email) = ? LIMIT 1");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
@@ -98,10 +108,22 @@ if (isset($_GET['action']) && $_GET['action'] === 'magic') {
         die('No account is linked to that email.');
     }
 
+    // If the admin has TOTP 2FA enabled, require a code before establishing
+    // the session. The pending email is kept in the session until verified.
+    if (!empty($user['totp_secret'])) {
+        $_SESSION['pending_2fa_email'] = $user['email'];
+        $_SESSION['pending_2fa_username'] = $user['username'];
+        $_SESSION['pending_2fa_role'] = $user['role'] ?? 'editor';
+        header('Content-Type: text/html; charset=UTF-8');
+        render2faChallenge();
+        exit;
+    }
+
+    // No 2FA configured: sign in immediately.
     $_SESSION['admin'] = $user['username'];
     $_SESSION['user_role'] = $user['role'] ?? 'editor';
-    session_regenerate_id(true);
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    Auth::registerSession($user['username']);
+    ActivityLog::log('magic_link_used', 'auth', (int)$user['id'], ['email' => $user['email']]);
 
     if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
         echo json_encode([
@@ -119,9 +141,47 @@ if (isset($_GET['action']) && $_GET['action'] === 'magic') {
     exit;
 }
 
+// Handle 2FA code submission (only valid when a magic link has set a pending email)
+if (isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
+    if (!isset($_SESSION['pending_2fa_email'])) {
+        http_response_code(401);
+        die('No pending sign in. Please request a new magic link.');
+    }
+
+    if (!CSRF::verify($_POST['csrf_token'] ?? '')) {
+        http_response_code(400);
+        die('Invalid CSRF token. Please reload the page and try again.');
+    }
+
+    $code = trim($_POST['code'] ?? '');
+    $stmt = $pdo->prepare("SELECT * FROM admins WHERE LOWER(email) = ? LIMIT 1");
+    $stmt->execute([$_SESSION['pending_2fa_email']]);
+    $user = $stmt->fetch();
+
+    if (!$user || empty($user['totp_secret'])) {
+        http_response_code(401);
+        die('No account or 2FA configuration found. Please request a new magic link.');
+    }
+
+    if (Totp::verify($user['totp_secret'], $code)) {
+        $_SESSION['admin'] = $user['username'];
+        $_SESSION['user_role'] = $user['role'] ?? 'editor';
+        unset($_SESSION['pending_2fa_email'], $_SESSION['pending_2fa_username'], $_SESSION['pending_2fa_role']);
+        Auth::registerSession($user['username']);
+        ActivityLog::log('magic_link_used', 'auth', (int)$user['id'], ['email' => $user['email'], '2fa' => true]);
+
+        header("Location: blogs.php");
+        exit;
+    }
+
+    http_response_code(401);
+    header('Content-Type: text/html; charset=UTF-8');
+    render2faChallenge('Invalid verification code. Please try again.');
+}
+
 // Handle auth status check (for Vue frontend)
 if (isset($_GET['action']) && $_GET['action'] === 'status') {
-    if (isset($_SESSION['admin'])) {
+    if (isset($_SESSION['admin']) && Auth::isSessionValid()) {
         $stmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE username = ? LIMIT 1");
         $stmt->execute([$_SESSION['admin']]);
         $user = $stmt->fetch();
@@ -148,7 +208,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'status') {
 
 // Handle logout
 if (isset($_GET['action']) && $_GET['action'] === 'logout') {
-    session_destroy();
+    Auth::logout();
     echo json_encode(['success' => true, 'message' => 'Logged out']);
     exit;
 }
@@ -181,6 +241,88 @@ $rateKey = "magic_attempts_" . md5($ip);
 
 if (!isset($_SESSION[$rateKey])) {
     $_SESSION[$rateKey] = ['count' => 0, 'time' => 0];
+}
+
+/**
+ * Render the TOTP 2FA challenge page.
+ */
+function render2faChallenge(?string $error = null): void
+{
+    $email = htmlspecialchars($_SESSION['pending_2fa_email'] ?? '', ENT_QUOTES, 'UTF-8');
+    $csrf = $_SESSION['csrf_token'] ?? '';
+    ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Factor Authentication - WAM Blog</title>
+    <style>
+        :root {
+            --bg: #FBF9F1; --fg: #2E2910; --card: #FFFFFF; --primary: #2C5745;
+            --primary-fg: #FFFFFF; --muted: #F5F0DC; --muted-fg: #5C5340;
+            --border: #D4C9A8; --green: #2C5745; --olive: #2E2910;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #EBE3A7 50%, var(--bg) 100%);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 1rem; color: var(--fg);
+        }
+        .card {
+            background: var(--card); border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            padding: 2rem; width: 100%; max-width: 420px;
+        }
+        .logo {
+            width: 3rem; height: 3rem; background: var(--green); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;
+            font-family: Georgia, serif; font-weight: 700; font-size: 1.5rem; color: white;
+        }
+        h1 { font-family: Georgia, serif; font-size: 1.5rem; text-align: center; color: var(--olive); margin-bottom: 0.5rem; }
+        .subtitle { text-align: center; color: var(--muted-fg); font-size: 0.875rem; margin-bottom: 1.5rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--olive); margin-bottom: 0.5rem; }
+        input[type="text"] {
+            width: 100%; padding: 0.75rem 1rem; font-size: 1.25rem; text-align: center; letter-spacing: 0.5rem;
+            font-family: inherit; border: 1px solid var(--border); border-radius: 0.5rem; background: var(--bg); color: var(--fg);
+        }
+        input[type="text"]:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(44,87,69,0.1); }
+        .btn-primary {
+            width: 100%; padding: 0.75rem 1.5rem; font-size: 1rem; font-weight: 500; font-family: inherit;
+            background: var(--green); color: white; border: none; border-radius: 0.5rem; cursor: pointer;
+        }
+        .btn-primary:hover { background: #234a3a; }
+        .error-message {
+            padding: 1rem; background: rgba(197,48,48,0.1); border: 1px solid rgba(197,48,48,0.2);
+            border-radius: 0.5rem; color: #c53030; font-size: 0.875rem; margin-bottom: 1.5rem;
+        }
+        .footer-text { text-align: center; color: var(--muted-fg); font-size: 0.875rem; margin-top: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">W</div>
+        <h1>Two-Factor Authentication</h1>
+        <p class="subtitle">Enter the 6-digit code from your authenticator app for <strong><?php echo $email; ?></strong></p>
+        <?php if ($error): ?>
+            <div class="error-message"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
+        <?php endif; ?>
+        <form method="POST" action="login.php">
+            <input type="hidden" name="csrf_token" value="<?php echo $csrf; ?>">
+            <input type="hidden" name="action" value="verify_2fa">
+            <div class="form-group">
+                <label for="code">Verification code</label>
+                <input type="text" name="code" id="code" maxlength="6" inputmode="numeric" autocomplete="one-time-code" required autofocus>
+            </div>
+            <button type="submit" class="btn-primary">Verify &amp; Sign In</button>
+        </form>
+        <p class="footer-text">The magic link you used is single-use. If this fails, request a new one.</p>
+    </div>
+</body>
+</html>
+<?php
+    exit;
 }
 ?>
 <!DOCTYPE html>
@@ -508,7 +650,7 @@ if (!isset($_SESSION[$rateKey])) {
             <?php if (!empty($magicSent)): ?>
                 <div class="magic-sent">
                     <div class="magic-sent-icon">✓</div>
-                    <p>We sent a sign in link to <strong><?php echo htmlspecialchars($magicEmail ?? '', ENT_QUOTES, 'UTF-8'); ?></strong>. Click it to get started. The link expires in 15 minutes.</p>
+                    <p>We sent a sign in link to <strong><?php echo htmlspecialchars($magicEmail ?? '', ENT_QUOTES, 'UTF-8'); ?></strong>. Click it to get started. The link expires in 10 minutes.</p>
                 </div>
             <?php else: ?>
                 <?php if (!empty($magicError)): ?>

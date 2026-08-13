@@ -11,6 +11,12 @@ Auth::check();
 $pdo = Connection::getInstance();
 CSRF::init();
 
+// Role model: admin and editor may edit posts; viewer is read-only.
+if (!in_array(Auth::getRole() ?? '', ['admin', 'editor'], true)) {
+    http_response_code(403);
+    die('Access denied: your role does not permit editing posts.');
+}
+
 // Existing code for blog editing...
 if (!isset($_GET['id'])) {
     die("Blog ID is required.");
