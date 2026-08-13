@@ -1,3 +1,12 @@
+# Stage 1: Build the Vue frontend
+FROM node:22-alpine AS frontend-builder
+WORKDIR /build
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: PHP runtime
 FROM php:8.4-fpm-alpine
 
 # Install system dependencies
@@ -22,6 +31,9 @@ WORKDIR /var/www/html
 
 # Copy application files
 COPY . .
+
+# Copy the built Vue frontend into the image
+COPY --from=frontend-builder /build/dist /var/www/html/frontend/dist
 
 # Install dependencies (no dev for production)
 RUN composer install --no-dev --optimize-autoloader --no-interaction

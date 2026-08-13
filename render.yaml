@@ -31,4 +31,4 @@ services:
       - key: MAIL_FROM_NAME
         value: WAM Blog
       - key: MAGIC_LINK_TTL
-        value: "900"
+        value: "600"
