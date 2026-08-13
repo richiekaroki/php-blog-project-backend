@@ -1,23 +1,16 @@
 <?php
 // api/index.php - API entry point and router
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
-header('X-Frame-Options: DENY');
-header('X-Content-Type-Options: nosniff');
-
-// Handle preflight requests
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
-// Load database connection
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use App\Database\Connection;
+use App\Middleware\CORS;
+
+CORS::handle();
+
+header('Content-Type: application/json');
+header('X-Frame-Options: DENY');
+header('X-Content-Type-Options: nosniff');
 
 $pdo = Connection::getInstance();
 

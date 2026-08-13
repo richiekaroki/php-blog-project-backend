@@ -5,9 +5,37 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use App\Database\Connection;
 use App\Middleware\CSRF;
+use App\Middleware\CORS;
+
+CORS::handle();
+header('Content-Type: application/json');
 
 $pdo = Connection::getInstance();
 CSRF::init();
+
+// Handle auth status check (for Vue frontend)
+if (isset($_GET['action']) && $_GET['action'] === 'status') {
+    if (isset($_SESSION['admin'])) {
+        echo json_encode([
+            'authenticated' => true,
+            'user' => [
+                'username' => $_SESSION['admin'],
+                'role' => $_SESSION['user_role'] ?? 'editor',
+            ]
+        ]);
+    } else {
+        http_response_code(401);
+        echo json_encode(['authenticated' => false]);
+    }
+    exit;
+}
+
+// Handle logout
+if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    session_destroy();
+    echo json_encode(['success' => true, 'message' => 'Logged out']);
+    exit;
+}
 
 // HIGH-4: IP-based rate limiting (not session-based — session can be cleared)
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
@@ -37,7 +65,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (!isset($_POST['csrf_token']) || 
         $_POST['csrf_token'] !== $_SESSION['csrf_token'] ||
         hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']) === false) {
-        die('Invalid CSRF token');
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid CSRF token']);
+        exit;
     }
 
     // Increment attempt counter (IP-based)
@@ -64,11 +94,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Reset login attempts on success
         $_SESSION[$rateKey] = ['count' => 0, 'time' => 0];
         $_SESSION['user_role'] = $user['role'] ?? 'editor';
-        header("Location: blogs.php");  // Redirect to blog management
+
+        // Return JSON for API requests, redirect for HTML forms
+        if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+            echo json_encode([
+                'success' => true,
+                'user' => [
+                    'username' => $username,
+                    'role' => $user['role'] ?? 'editor',
+                ]
+            ]);
+        } else {
+            header("Location: blogs.php");
+        }
         exit;
     } else {
         // Invalid credentials - show error but don't reveal if user exists
-        $error = "Invalid username or password";
+        if (str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+            http_response_code(401);
+            echo json_encode(['error' => 'Invalid username or password']);
+        } else {
+            $error = "Invalid username or password";
+        }
     }
 }
 ?>
