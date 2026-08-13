@@ -25,14 +25,20 @@ if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
 
-// Handle DELETE (admin only)
-if (isset($_GET['delete'])) {
+// Handle DELETE (admin only, POST + CSRF — never via GET)
+if (isset($_POST['delete'])) {
     if (!$canDelete) {
         http_response_code(403);
         die('Access denied: only admins can delete posts.');
     }
 
-    $id = (int)$_GET['delete'];
+    if (!isset($_POST['csrf_token']) ||
+        $_POST['csrf_token'] !== $_SESSION['csrf_token'] ||
+        hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']) === false) {
+        die('Invalid CSRF token');
+    }
+
+    $id = (int)$_POST['delete'];
     
     // Get image path before deleting
     $stmt = $pdo->prepare("SELECT image FROM blogs WHERE id = ?");
@@ -67,9 +73,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die('Invalid CSRF token');
     }
 
-    $title = $_POST['title'];
-    $content = $_POST['content'];
+    $title = trim((string)($_POST['title'] ?? ''));
+    $content = trim((string)($_POST['content'] ?? ''));
     $category_id = $_POST['category_id'] ?? null;
+
+    // Server-side validation (mirrors DB constraints: title VARCHAR(255), content TEXT)
+    if ($title === '' || mb_strlen($title) > 255) {
+        die('Title is required and must be 255 characters or fewer.');
+    }
+    if ($content === '') {
+        die('Content is required.');
+    }
     $imagePath = null;
 
     // Handle image upload — HIGH-1: validate actual content, not just MIME
@@ -650,8 +664,12 @@ $categories = $catStmt->fetchAll();
             <p>Are you sure you want to delete "<span id="deleteBlogTitle"></span>"?</p>
             <p style="color: var(--destructive); font-size: 0.85rem;">This action cannot be undone.</p>
             <div class="modal-actions">
-                <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
-                <a href="#" id="deleteLink" class="btn btn-danger">Delete</a>
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <form method="POST" action="blogs.php" id="deleteForm" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                    <input type="hidden" name="delete" id="deleteId" value="">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
             </div>
         </div>
     </div>
@@ -671,7 +689,7 @@ $categories = $catStmt->fetchAll();
         
         function confirmDelete(id, title) {
             document.getElementById('deleteBlogTitle').textContent = title;
-            document.getElementById('deleteLink').href = 'blogs.php?delete=' + id;
+            document.getElementById('deleteId').value = id;
             document.getElementById('deleteModal').classList.add('active');
         }
         

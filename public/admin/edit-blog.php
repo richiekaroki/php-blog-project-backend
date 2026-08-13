@@ -37,8 +37,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die('Invalid CSRF token');
     }
 
-    $title = $_POST['title'];
-    $content = $_POST['content'];
+    $title = trim((string)($_POST['title'] ?? ''));
+    $content = trim((string)($_POST['content'] ?? ''));
+
+    // Server-side validation (title is VARCHAR(255) in the DB)
+    if ($title === '' || mb_strlen($title) > 255) {
+        die('Title is required and must be 255 characters or fewer.');
+    }
+    if ($content === '') {
+        die('Content is required.');
+    }
 
     $sql = "UPDATE blogs SET title = ?, content = ? WHERE id = ?";
     $stmt = $pdo->prepare($sql);

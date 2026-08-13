@@ -19,14 +19,20 @@ $currentRole = Auth::getRole() ?? 'viewer';
 $canWrite = in_array($currentRole, ['admin', 'editor'], true);
 $canDelete = $currentRole === 'admin';
 
-// Handle DELETE (admin only)
-if (isset($_GET['delete'])) {
+// Handle DELETE (admin only, POST + CSRF — never via GET)
+if (isset($_POST['delete'])) {
     if (!$canDelete) {
         http_response_code(403);
         die('Access denied: only admins can delete categories.');
     }
 
-    $id = (int)$_GET['delete'];
+    if (!isset($_POST['csrf_token']) ||
+        $_POST['csrf_token'] !== $_SESSION['csrf_token'] ||
+        hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']) === false) {
+        die('Invalid CSRF token');
+    }
+
+    $id = (int)$_POST['delete'];
     $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
     $stmt->execute([$id]);
     header("Location: categories.php");
@@ -49,16 +55,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['category_id'])) {
         // Edit category
         $id = (int)$_POST['category_id'];
-        $name = $_POST['name'];
-        $description = $_POST['description'] ?? '';
+        $name = trim((string)($_POST['name'] ?? ''));
+        $description = trim((string)($_POST['description'] ?? ''));
+
+        // Server-side validation (name is VARCHAR(50) in the DB)
+        if ($name === '' || mb_strlen($name) > 50) {
+            die('Category name is required and must be 50 characters or fewer.');
+        }
 
         $sql = "UPDATE categories SET name = ?, description = ? WHERE id = ?";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$name, $description, $id]);
     } else {
         // Add new category
-        $name = $_POST['name'];
-        $description = $_POST['description'] ?? '';
+        $name = trim((string)($_POST['name'] ?? ''));
+        $description = trim((string)($_POST['description'] ?? ''));
+
+        if ($name === '' || mb_strlen($name) > 50) {
+            die('Category name is required and must be 50 characters or fewer.');
+        }
 
         $sql = "INSERT INTO categories (name, description) VALUES (?, ?)";
         $stmt = $pdo->prepare($sql);
@@ -274,7 +289,11 @@ if (isset($_GET['edit'])) {
                                             <a href="?edit=<?php echo $cat['id']; ?>" class="btn btn-outline btn-sm">Edit</a>
                                             <?php endif; ?>
                                             <?php if ($canDelete): ?>
-                                            <button class="btn btn-danger btn-sm" onclick="if(confirm('Delete this category?')) window.location='categories.php?delete=<?php echo $cat['id']; ?>'">Delete</button>
+                                            <form method="POST" action="categories.php" style="display: inline;" onsubmit="return confirm('Delete this category?');">
+                                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                                <input type="hidden" name="delete" value="<?php echo $cat['id']; ?>">
+                                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                            </form>
                                             <?php endif; ?>
                                         </div>
                                     </td>
