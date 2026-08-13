@@ -83,7 +83,7 @@ Public-only SPA (the admin SPA views were removed; admin is PHP-rendered).
 | `src/Mail/Mailer.php` | Brevo SMTP sender (HTML + plain text). |
 | `src/Models/ActivityLog.php` | Append-only audit log. |
 | `public/admin/*.php` | Server-rendered admin (login, blogs, categories, edit-blog, profile). |
-| `public/api/index.php` | Single-file REST router with centralized write-gate + rate limit. |
+| `public/api/index.php` | Single-file REST router with centralized write-gate + DB-backed rate limit. |
 | `public/index.php`, `public/post.php` | Public blog pages (PHP-rendered fallback / SSR). |
 
 ### 3.3 Infrastructure
@@ -111,7 +111,7 @@ Layered defense-in-depth:
 
 ### 4.2 Request defenses
 - **CSRF** — per-session token on every state-changing form and API action.
-- **Rate limiting** — DB-backed, keyed on a SHA-256 hash of the client IP: magic-request 5/15 min and 2FA 5/15 min (`login_rate_limits`) + global API 100 req/min/IP (temp file) with `X-RateLimit-*` headers.
+- **Rate limiting** — DB-backed, keyed on a SHA-256 hash of the client IP: magic-request 5/15 min, 2FA 5/15 min, and global API 100 req/min/IP (all in `login_rate_limits`) with `X-RateLimit-*` headers. Survives container restarts and works across replicas.
 - **Content-Type enforcement** — POST/PUT must be `application/json` (415 otherwise).
 - **Input validation** — email `FILTER_VALIDATE_EMAIL`, parameterized PDO everywhere (SQLi-safe), output `htmlspecialchars` (XSS-safe), `hash_equals` for all secret comparisons.
 

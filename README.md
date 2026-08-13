@@ -24,9 +24,11 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 - 🔑 **Passwordless magic links** — HMAC-SHA256 signed tokens, **single-use** (atomic `INSERT … ON CONFLICT`), 10-minute expiry, no account-leaking responses.
 - 🛡️ **Optional TOTP 2FA** — RFC 6238, no external dependencies; enrollment requires proof-of-possession, disable requires the current code.
 - 🧾 **Server-side session registry** — every login recorded in `auth_sessions`; logout & "sign out other devices" revoke sessions instantly.
-- 🚦 **DB-backed IP rate limiting** — magic-link requests and 2FA attempts capped at 5/15 min, keyed on hashed IP (cookies can't reset it).
+- 🚦 **DB-backed IP rate limiting** — magic-link requests, 2FA attempts, and API requests all capped per-minute, keyed on hashed IP (cookies can't reset it).
 - 👥 **Role-based access control** — `admin` (full), `editor` (create/edit), `viewer` (read-only), enforced server-side on the API **and** PHP admin pages.
 - 🐘 **PostgreSQL + PDO** — parameterized queries throughout, search/filter/pagination, image uploads with validation.
+- 🕷️ **SEO-friendly** — crawlers get the fully server-rendered landing page (nginx bot UA detection); humans get the Vue SPA.
+- 🔎 **Activity feed** — `activity.php` surfaces sign-ins, 2FA enable/disable, session revocations, and content edits with human-readable labels.
 - 🚀 **One-container deploy** — multi-stage Dockerfile builds the Vue SPA and serves it alongside PHP-FPM behind Nginx (same-origin, no CORS in production).
 - 📝 **Audit logging** — `activity_log` records sign-ins, 2FA changes, and session revocations.
 

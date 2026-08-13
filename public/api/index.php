@@ -48,33 +48,18 @@ if (in_array($method, ['POST', 'PUT'])) {
     }
 }
 
-// --- CRITICAL-2: Rate limiting (100 requests per minute per IP) ---
-$ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-$rateFile = sys_get_temp_dir() . '/api_rate_' . md5($ip);
-$rateData = ['count' => 0, 'window' => time()];
-
-if (file_exists($rateFile)) {
-    $stored = json_decode(file_get_contents($rateFile), true);
-    if ($stored && (time() - $stored['window']) < 60) {
-        $rateData = $stored;
-        $rateData['count']++;
-    } else {
-        $rateData = ['count' => 1, 'window' => time()];
-    }
-} else {
-    $rateData = ['count' => 1, 'window' => time()];
-}
-
-file_put_contents($rateFile, json_encode($rateData));
+// --- CRITICAL-2: Rate limiting (100 requests per minute per IP, DB-backed) ---
+// Stored in Postgres so it survives container restarts and works across replicas.
+$rateLimit = new \App\Middleware\RateLimit($pdo);
+$ip = \App\Middleware\RateLimit::clientIp();
+$count = $rateLimit->hit('api', $ip, 60);
 
 // Add rate limit headers
-$remaining = max(0, 100 - $rateData['count']);
-$resetTime = $rateData['window'] + 60;
+$remaining = max(0, 100 - $count);
 header("X-RateLimit-Limit: 100");
 header("X-RateLimit-Remaining: $remaining");
-header("X-RateLimit-Reset: $resetTime");
 
-if ($rateData['count'] > 100) {
+if ($count > 100) {
     sendResponse(429, ['error' => 'Rate limit exceeded. Max 100 requests per minute.']);
 }
 
