@@ -25,7 +25,7 @@ const handleSubmit = async () => {
   const success = await authStore.login(form.value)
   if (success) {
     toast.success('Welcome back!')
-    router.push('/')
+    router.push('/admin')
   } else {
     toast.error(authStore.error || 'Login failed')
   }

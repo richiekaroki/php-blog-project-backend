@@ -6,13 +6,17 @@ import Header from './Header.vue'
 
 const authStore = useAuthStore()
 const route = useRoute()
+
+const isLanding = route.name === 'landing'
+const isLogin = route.name === 'login'
+const isPublic = isLanding || isLogin
 </script>
 
 <template>
-  <div v-if="route.name === 'login'" class="min-h-screen">
+  <div v-if="isPublic">
     <slot />
   </div>
-  <div v-else class="flex h-screen bg-gray-100">
+  <div v-else class="flex h-screen bg-muted/30">
     <Sidebar v-if="authStore.isAuthenticated" />
     <div class="flex-1 flex flex-col overflow-hidden">
       <Header v-if="authStore.isAuthenticated" />

@@ -5,25 +5,31 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
+      path: '/',
+      name: 'landing',
+      component: () => import('@/views/LandingView.vue'),
+      meta: { requiresGuest: true },
+    },
+    {
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
       meta: { requiresGuest: true },
     },
     {
-      path: '/',
+      path: '/admin',
       name: 'dashboard',
       component: () => import('@/views/DashboardView.vue'),
       meta: { requiresAuth: true },
     },
     {
-      path: '/blogs',
+      path: '/admin/blogs',
       name: 'blogs',
       component: () => import('@/views/BlogsView.vue'),
       meta: { requiresAuth: true },
     },
     {
-      path: '/categories',
+      path: '/admin/categories',
       name: 'categories',
       component: () => import('@/views/CategoriesView.vue'),
       meta: { requiresAuth: true },
@@ -40,7 +46,7 @@ router.beforeEach((to, _from, next) => {
 
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next({ name: 'login' })
-  } else if (to.meta.requiresGuest && authStore.isAuthenticated) {
+  } else if (to.meta.requiresGuest && to.name !== 'landing' && authStore.isAuthenticated) {
     next({ name: 'dashboard' })
   } else {
     next()

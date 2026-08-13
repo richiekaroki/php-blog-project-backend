@@ -5,9 +5,9 @@ import { Bell } from 'lucide-vue-next'
 const route = useRoute()
 
 const pageTitle: Record<string, string> = {
-  '/': 'Dashboard',
-  '/blogs': 'Blog Management',
-  '/categories': 'Category Management',
+  '/admin': 'Dashboard',
+  '/admin/blogs': 'Blog Management',
+  '/admin/categories': 'Category Management',
 }
 </script>
 

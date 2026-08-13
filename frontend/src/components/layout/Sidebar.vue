@@ -12,9 +12,9 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const navItems = [
-  { name: 'Dashboard', route: '/', icon: LayoutDashboard },
-  { name: 'Blogs', route: '/blogs', icon: FileText },
-  { name: 'Categories', route: '/categories', icon: Tag },
+  { name: 'Dashboard', route: '/admin', icon: LayoutDashboard },
+  { name: 'Blogs', route: '/admin/blogs', icon: FileText },
+  { name: 'Categories', route: '/admin/categories', icon: Tag },
 ]
 </script>
 
