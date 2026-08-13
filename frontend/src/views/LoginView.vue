@@ -18,7 +18,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
 
-const mode = ref<'password' | 'magic'>('password')
+const mode = ref<'password' | 'magic'>('magic')
 
 const form = ref({
   username: '',

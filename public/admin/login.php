@@ -237,7 +237,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && !isset($_POST['magic_email'])) {
     }
 }
 ?>
-<?php $magicMode = isset($magicSent) || isset($magicError); ?>
+<?php $magicMode = true; ?>
+<?php if (isset($_GET['mode']) && $_GET['mode'] === 'password'): ?>
+    <?php $magicMode = false; ?>
+<?php endif; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

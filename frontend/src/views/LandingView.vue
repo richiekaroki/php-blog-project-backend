@@ -56,7 +56,7 @@ onMounted(async () => {
             <Moon v-else class="h-5 w-5" />
           </button>
           <RouterLink to="/login">
-            <Button variant="ghost" class="text-muted-foreground hover:text-foreground">Sign In</Button>
+            <Button variant="ghost" class="text-muted-foreground hover:text-foreground">Enter the blog</Button>
           </RouterLink>
           <Button
             @click="showGetStarted = true"
