@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Activity, FileText, Tag, Trash2, Edit, Plus } from 'lucide-vue-next'
+import { api } from '@/api/client'
+import { Activity, FileText, Tag } from 'lucide-vue-next'
 
 interface ActivityItem {
   id: number

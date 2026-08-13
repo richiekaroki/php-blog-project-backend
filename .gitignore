@@ -4,6 +4,7 @@
 
 # Environment variables
 /.env
+/php-blog-backend.env
 
 # Public uploads (user content)
 /public/uploads/*
@@ -41,9 +42,15 @@ herd-*
 # Screenshots
 screencapture-*.png
 
+# Playwright browser test artifacts
+.playwright-mcp/
+
 # Frontend build
 frontend/dist/
 frontend/node_modules/
+
+# Frontend dev-server log
+frontend/vite-dev.log
 
 # Local config (not tracked)
 opencode.json

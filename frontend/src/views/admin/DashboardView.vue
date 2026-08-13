@@ -5,7 +5,7 @@ import Card from '@/components/ui/Card.vue'
 import CardHeader from '@/components/ui/CardHeader.vue'
 import CardTitle from '@/components/ui/CardTitle.vue'
 import CardContent from '@/components/ui/CardContent.vue'
-import ActivityLog from '@/components/ActivityLog.vue'
+import ActivityLog from '@/features/activity/ActivityLog.vue'
 import { FileText, Tag, TrendingUp, BarChart3 } from 'lucide-vue-next'
 
 const blogStore = useBlogStore()

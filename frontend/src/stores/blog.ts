@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Blog, Category, PaginatedResponse, ApiResponse } from '@/types'
-import { api } from '@/composables/useApi'
+import { api } from '@/api/client'
 
 export const useBlogStore = defineStore('blog', () => {
   const blogs = ref<Blog[]>([])

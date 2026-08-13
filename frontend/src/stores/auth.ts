@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User, LoginCredentials } from '@/types'
-import { api } from '@/composables/useApi'
+import { api } from '@/api/client'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
