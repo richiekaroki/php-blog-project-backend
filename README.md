@@ -54,6 +54,12 @@ A secure PHP blog backend with admin panel, REST API, and PostgreSQL. Features r
 - Session-based, CSRF-protected, rate-limited (5/15 min)
 - Magic links are stateless HMAC-SHA256 tokens signed with `APP_KEY` (15-min expiry)
 
+## Design System
+
+Explore the unified design system used throughout the project based on Tailwind CSS 4 and custom CSS variables.  Check `frontend/src/style.css` for the full token definitions and the design system artifacts.  The design system shares a common color palette, typography, spacing, and component pattern set shared between the server‑rendered admin pages and the Vue admin SPA.
+
+See `DESIGN.md` for the complete token definitions and usage guidelines.
+
 ## Local Development
 
 ```bash
