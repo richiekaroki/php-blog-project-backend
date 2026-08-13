@@ -1,84 +1,72 @@
-# Blog Backend
+# WAM Blog Backend
 
 [![CI](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml/badge.svg)](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml)
 [![Tests](https://img.shields.io/badge/tests-41%20passed-brightgreen)](#testing)
 [![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php)](#)
+[![Vue](https://img.shields.io/badge/Vue-3-42b883?logo=vue.js)](#)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql)](#)
-[![License](https://img.shields.io/badge/license-MIT-blue)](#)
 
-A secure PHP blog backend with admin panel, REST API, and PostgreSQL. Built to demonstrate modern security practices, clean API design, and automated testing.
+A secure blog with a **Vue 3 + TypeScript admin frontend**, PHP REST API, and PostgreSQL. Features passwordless magic-link sign-in, profile management, dark mode, and OWASP-minded security.
 
 **Live Demo:** https://php-blog-backend.onrender.com
 
 | URL | Description |
 |-----|-------------|
 | [Homepage](https://php-blog-backend.onrender.com) | Blog with search, filter, pagination |
-| [Admin Panel](https://php-blog-backend.onrender.com/admin/login.php) | Blog & category management |
+| [Admin Panel](https://php-blog-backend.onrender.com/admin/login.php) | Sign in to manage blogs, categories & profile |
 | [API Health](https://php-blog-backend.onrender.com/api/index.php?action=health) | API status check |
 
-**Login:** `admin` / `password`
-
-## What I Built
-
-This project is a secure blog backend I built to demonstrate application security, API design, and testing practices. It implements OWASP Top 10 mitigations including CSRF protection, XSS prevention, rate limiting, session hardening, and input validation. The REST API supports full CRUD with authentication, field whitelisting, and IP-based rate limiting.
-
-The project is deployed on Render with Neon PostgreSQL, using Docker for containerization and GitHub Actions for CI/CD. It includes 41 automated tests covering database operations, security features, and API endpoints.
+**Admin login:** `admin` / `password` (set a real email in Profile to enable magic-link sign-in)
 
 ## Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Language | PHP 8.4 |
+| Frontend | Vue 3, TypeScript, Vite, Pinia, Vue Router, Tailwind, shadcn-vue |
+| Backend | PHP 8.4, Nginx + PHP-FPM (Docker) |
 | Database | PostgreSQL 17 (Neon) |
-| Server | Nginx + PHP-FPM (Docker) |
-| Frontend | Bootstrap 5 |
-| Testing | PHPUnit |
-| CI/CD | GitHub Actions |
+| Email | Brevo SMTP (magic links) |
+| Testing | PHPUnit (41 tests) |
 | Hosting | Render |
-
-## Security
-
-| OWASP Category | Implementation |
-|----------------|----------------|
-| **A01: Broken Access Control** | API auth required for writes, role-based admin access |
-| **A02: Cryptographic Failures** | bcrypt password hashing, HTTPS support |
-| **A03: Injection** | PDO prepared statements with `EMULATE_PREPARES=false` |
-| **A05: Security Misconfiguration** | CSP, X-Frame-Options, X-Content-Type-Options headers |
-| **A07: Auth Failures** | Rate limiting (5 attempts/15 min), session regeneration |
-| **A08: Data Integrity** | CSRF tokens on all forms, field whitelisting on API |
-
-Additional protections:
-- **Session Security** — `httponly`, `samesite=Lax`, `strict_mode`
-- **Image Validation** — `getimagesize()` content verification, random filenames
-- **Error Handling** — Generic messages, details logged server-side only
-- **Rate Limiting** — Login: 5 attempts/15 min (IP-based); API: 100 req/min
-
-## API
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/index.php?action=blogs` | No | List all posts |
-| `GET` | `/api/index.php?action=blogs&id=1` | No | Single post |
-| `POST` | `/api/index.php?action=blogs` | Yes | Create post |
-| `PUT` | `/api/index.php?action=blogs&id=1` | Yes | Update post |
-| `DELETE` | `/api/index.php?action=blogs&id=1` | Yes | Delete post |
-| `GET` | `/api/index.php?action=categories` | No | List categories |
-| `GET` | `/api/index.php?action=health` | No | Health check |
 
 ## Project Structure
 
 ```
-├── admin/              # Blog & category CRUD
-├── api/                # REST API (authenticated writes)
-├── includes/           # Auth, CSRF, DB connection, security headers
-├── sql/                # PostgreSQL schema
-├── tests/              # 41 PHPUnit tests
-├── index.php           # Homepage (search, filter, pagination)
-├── post.php            # Single post view
-├── Dockerfile          # PHP-FPM + Nginx container
-├── nginx.conf          # Web server config
-├── render.yaml         # Deployment blueprint
-└── .env.example        # Environment template
+├── frontend/             # Vue 3 + TS admin SPA
+│   └── src/
+│       ├── api/          # Axios client
+│       ├── components/   # blog, category, layout, ui (shadcn-vue)
+│       ├── features/     # activity log, landing modal
+│       ├── stores/       # Pinia (auth, blog)
+│       ├── views/        # landing, login, admin/
+│       └── router/       # Auth-guarded routes
+├── src/                  # PHP app (Auth, Database, Mail, Middleware, Models)
+├── public/               # admin/, api/, index.php, post.php
+├── sql/                  # schema + migrations
+├── tests/                # 41 PHPUnit tests
+├── Dockerfile / nginx.conf / render.yaml
+└── .env.example
+```
+
+## Auth
+
+- Username + password (bcrypt), or passwordless magic-link via Brevo SMTP
+- Session-based, CSRF-protected, rate-limited (5/15 min)
+- Magic links are stateless HMAC-SHA256 tokens signed with `APP_KEY` (15-min expiry)
+
+## Local Development
+
+```bash
+# Backend
+composer install && cp .env.example .env   # add DB + SMTP keys
+psql -U postgres -c "CREATE DATABASE mizzle_backend;"
+psql -U postgres -d mizzle_backend -f sql/ruru_schema.sql -f sql/migrations/2026_add_admin_email.sql
+
+# Frontend (Vue 3 SPA)
+cd frontend && npm install && npm run dev   # http://localhost:3000, proxies /api
+
+# PHP site
+http://php-blog-backend-project.test
 ```
 
 ## Testing
@@ -87,39 +75,6 @@ Additional protections:
 vendor/bin/phpunit --testdox
 ```
 
-41 tests covering:
-- Database schema validation
-- Password hashing (bcrypt)
-- SQL injection prevention
-- XSS prevention
-- CSRF token generation
-- Image upload validation
-- Blog CRUD operations
-- Category constraints
-- Pagination logic
-- Input validation
-- API authentication & field whitelisting
-
-## Local Development
-
-```bash
-# Install dependencies
-composer install
-
-# Create database
-psql -U postgres -c "CREATE DATABASE mizzle_backend;"
-psql -U postgres -d mizzle_backend -f sql/ruru_schema.sql
-
-# Start Herd and visit
-http://php-blog-backend-project.test
-```
-
 ## Deployment
 
-This project is deployed on **Render** using Docker with **Neon PostgreSQL**. The deployment is automated via GitHub Actions — pushing to `main` triggers a rebuild.
-
-To deploy your own copy:
-1. Fork this repository
-2. Create a Neon PostgreSQL database
-3. Set `DATABASE_URL` environment variable in Render
-4. Deploy using the included `render.yaml` blueprint
+Deployed on Render (Docker) + Neon PostgreSQL; pushing to `main` auto-rebuilds. Set in the Render dashboard (never commit secrets): `DATABASE_URL` (Neon integration), `APP_KEY` (32 random bytes, `base64:` prefix), `MAIL_PASSWORD` (Brevo SMTP key).
