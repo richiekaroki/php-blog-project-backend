@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS invitations (
     FOREIGN KEY (invited_by) REFERENCES admins(id) ON DELETE SET NULL
 );
 
+-- Idempotent upgrade for tables created by an earlier version of this migration.
+ALTER TABLE invitations ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP;
+
 CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
 CREATE INDEX IF NOT EXISTS idx_invitations_email ON invitations(email);
 CREATE INDEX IF NOT EXISTS idx_invitations_pending ON invitations(expires_at) WHERE accepted_at IS NULL AND rejected_at IS NULL;

@@ -28,6 +28,11 @@ class Mailer
             'timeout' => 30,
         ], $config);
 
+        // Render deployments set MAIL_PASS; the code historically read MAIL_PASSWORD.
+        if ($config['password'] === '') {
+            $config['password'] = self::env('MAIL_PASS', '');
+        }
+
         $this->host = $config['host'];
         $this->port = $config['port'];
         $this->username = $config['username'];
