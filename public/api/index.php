@@ -621,7 +621,12 @@ function handleMagic($method, $pdo, $rateLimit, $ip) {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         sendResponse(400, ['error' => 'A valid email address is required']);
     }
+    // Per-email throttle: max 3 sign-in links per email per hour (anti email-bombing).
+    if ($rateLimit->isBlockedKey('magic_email', $email, 3, 3600)) {
+        sendResponse(429, ['error' => 'Too many sign in links sent to this email. Please try again in an hour.']);
+    }
     $rateLimit->hit('magic', $ip, 900);
+    $rateLimit->hitKey('magic_email', $email, 3600);
 
     // Auto-provision: any email gets a sign in link; if no account exists
     // yet, one is created (editor role) so first-time sign-in is smooth.
@@ -682,7 +687,12 @@ function handleSignupRequest($method, $pdo, $rateLimit, $ip) {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         sendResponse(400, ['error' => 'A valid email address is required']);
     }
+    // Per-email throttle: max 3 sign-up/sign-in links per email per hour.
+    if ($rateLimit->isBlockedKey('magic_email', $email, 3, 3600)) {
+        sendResponse(429, ['error' => 'Too many sign in links sent to this email. Please try again in an hour.']);
+    }
     $rateLimit->hit('magic', $ip, 900);
+    $rateLimit->hitKey('magic_email', $email, 3600);
 
     $user = \App\Models\Invitation::provision($email, 'editor');
     if ($user === null) {

@@ -44,7 +44,39 @@ class RateLimit
     public function hit(string $bucket, string $ip, int $windowSeconds): int
     {
         $key = hash('sha256', $bucket . '|' . $ip);
+        return $this->record($bucket, $key, $windowSeconds);
+    }
 
+    /**
+     * True if this bucket/IP has hit or exceeded maxAttempts within the window.
+     */
+    public function isBlocked(string $bucket, string $ip, int $maxAttempts, int $windowSeconds): bool
+    {
+        $key = hash('sha256', $bucket . '|' . $ip);
+        return $this->check($bucket, $key, $maxAttempts, $windowSeconds);
+    }
+
+    /**
+     * Record an attempt keyed on an arbitrary identifier (e.g. an email address),
+     * hashed so raw addresses are never stored. Returns the updated count.
+     */
+    public function hitKey(string $bucket, string $identifier, int $windowSeconds): int
+    {
+        $key = hash('sha256', $bucket . '|' . strtolower(trim($identifier)));
+        return $this->record($bucket, $key, $windowSeconds);
+    }
+
+    /**
+     * True if an arbitrary identifier (e.g. email) has hit or exceeded maxAttempts.
+     */
+    public function isBlockedKey(string $bucket, string $identifier, int $maxAttempts, int $windowSeconds): bool
+    {
+        $key = hash('sha256', $bucket . '|' . strtolower(trim($identifier)));
+        return $this->check($bucket, $key, $maxAttempts, $windowSeconds);
+    }
+
+    private function record(string $bucket, string $key, int $windowSeconds): int
+    {
         // UPSERT with window rollover: if the current window has elapsed, the
         // counter resets to 1; otherwise it increments. Atomic via ON CONFLICT.
         $stmt = $this->pdo->prepare("
@@ -67,12 +99,8 @@ class RateLimit
         return (int)$stmt->fetchColumn();
     }
 
-    /**
-     * True if this bucket/IP has hit or exceeded maxAttempts within the window.
-     */
-    public function isBlocked(string $bucket, string $ip, int $maxAttempts, int $windowSeconds): bool
+    private function check(string $bucket, string $key, int $maxAttempts, int $windowSeconds): bool
     {
-        $key = hash('sha256', $bucket . '|' . $ip);
         $stmt = $this->pdo->prepare("
             SELECT attempt_count, window_start
             FROM login_rate_limits

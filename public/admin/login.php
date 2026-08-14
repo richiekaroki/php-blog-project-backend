@@ -43,7 +43,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
 
         if (!filter_var($magicEmail, FILTER_VALIDATE_EMAIL)) {
             $magicError = 'Please enter a valid email address.';
+        } elseif ($rateLimit->isBlockedKey('magic_email', $magicEmail, 3, 3600)) {
+            http_response_code(429);
+            $magicError = 'Too many sign in links sent to this email. Please try again in an hour.';
         } else {
+            $rateLimit->hitKey('magic_email', $magicEmail, 3600);
             try {
                 // Auto-provision: create the account if this is a new email.
                 $user = \App\Models\Invitation::provision($magicEmail, 'editor');

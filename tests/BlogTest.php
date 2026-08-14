@@ -174,6 +174,28 @@ class BlogTest extends TestCase
         $this->pdo->exec("DELETE FROM login_rate_limits WHERE bucket LIKE 'test%'");
     }
 
+    public function testRateLimitEmailKeyedThrottleIsIsolated()
+    {
+        $this->pdo->exec("DELETE FROM login_rate_limits WHERE bucket LIKE 'test%'");
+
+        $rl = new \App\Middleware\RateLimit($this->pdo);
+
+        // 3 hits under the cap of 3 → not blocked
+        $this->assertSame(1, $rl->hitKey('test_magic_email', 'Victim@Example.com', 3600));
+        $this->assertSame(2, $rl->hitKey('test_magic_email', 'victim@example.com', 3600));
+        $this->assertFalse($rl->isBlockedKey('test_magic_email', 'VICTIM@example.com', 3, 3600));
+        $this->assertSame(3, $rl->hitKey('test_magic_email', 'victim@example.com', 3600));
+        $this->assertTrue($rl->isBlockedKey('test_magic_email', 'victim@example.com', 3, 3600));
+
+        // Case-insensitive: a different case of the same email is also blocked.
+        $this->assertTrue($rl->isBlockedKey('test_magic_email', 'VICTIM@EXAMPLE.COM', 3, 3600));
+
+        // A different email is not affected.
+        $this->assertFalse($rl->isBlockedKey('test_magic_email', 'someone-else@example.com', 3, 3600));
+
+        $this->pdo->exec("DELETE FROM login_rate_limits WHERE bucket LIKE 'test%'");
+    }
+
     public function testRateLimitClientIpPrefersForwardedHeader()
     {
         $original = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? null;
