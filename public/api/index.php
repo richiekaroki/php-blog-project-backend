@@ -123,10 +123,10 @@ try {
             handleActivity($method);
             break;
         case 'magic':
-            handleMagic($method, $pdo);
+            handleMagic($method, $pdo, $rateLimit, $ip);
             break;
         case 'signup-request':
-            handleSignupRequest($method, $pdo);
+            handleSignupRequest($method, $pdo, $rateLimit, $ip);
             break;
         case 'profile':
             handleProfile($method, $pdo);
@@ -605,9 +605,14 @@ function handleActivity($method) {
  * Handle passwordless magic link requests.
  * POST /api/magic/request  { "email": "..." }
  */
-function handleMagic($method, $pdo) {
+function handleMagic($method, $pdo, $rateLimit, $ip) {
     if ($method !== 'POST') {
         sendResponse(405, ['error' => 'Method not allowed']);
+    }
+
+    // Per-IP throttle: max 5 sign-in links per 15 minutes (mirrors the HTML form).
+    if ($rateLimit->isBlocked('magic', $ip, 5, 900)) {
+        sendResponse(429, ['error' => 'Too many sign in requests. Please try again in 15 minutes.']);
     }
 
     $data = json_decode(file_get_contents('php://input'), true);
@@ -616,6 +621,7 @@ function handleMagic($method, $pdo) {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         sendResponse(400, ['error' => 'A valid email address is required']);
     }
+    $rateLimit->hit('magic', $ip, 900);
 
     // Auto-provision: any email gets a sign in link; if no account exists
     // yet, one is created (editor role) so first-time sign-in is smooth.
@@ -657,9 +663,14 @@ function handleMagic($method, $pdo) {
  * sign-in link so the new user can get going immediately. No admin
  * approval is required.
  */
-function handleSignupRequest($method, $pdo) {
+function handleSignupRequest($method, $pdo, $rateLimit, $ip) {
     if ($method !== 'POST') {
         sendResponse(405, ['error' => 'Method not allowed']);
+    }
+
+    // Per-IP throttle: max 5 sign-up/sign-in links per 15 minutes (mirrors the HTML form).
+    if ($rateLimit->isBlocked('magic', $ip, 5, 900)) {
+        sendResponse(429, ['error' => 'Too many sign in requests. Please try again in 15 minutes.']);
     }
 
     $data = json_decode(file_get_contents('php://input'), true);
@@ -668,6 +679,7 @@ function handleSignupRequest($method, $pdo) {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         sendResponse(400, ['error' => 'A valid email address is required']);
     }
+    $rateLimit->hit('magic', $ip, 900);
 
     $user = \App\Models\Invitation::provision($email, 'editor');
     if ($user === null) {
