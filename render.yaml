@@ -39,3 +39,7 @@ services:
         value: WAM Blog
       - key: MAGIC_LINK_TTL
         value: "600"
+      # Comma-separated emails notified when a new account is auto-provisioned.
+      # Leave unset (or empty) to disable notifications.
+      - key: ADMIN_NOTIFICATION_EMAILS
+        value: rkabue23@gmail.com

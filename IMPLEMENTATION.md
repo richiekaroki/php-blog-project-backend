@@ -259,6 +259,8 @@ Apply in order:
 | `MAGIC_LINK_TTL` | — | `600` | Link lifetime in seconds. |
 | `MAIL_HOST/PORT/USERNAME/PASSWORD` | ✅ | Brevo defaults | SMTP creds. Never commit `MAIL_PASSWORD`. |
 | `MAIL_FROM_ADDRESS/NAME` | — | — | Sender identity. **Must be a Brevo-verified sender**, or Brevo rejects the send while the API returns 200. |
+| `ADMIN_NOTIFICATION_EMAILS` | — | — | Comma-separated emails emailed when a new account is auto-provisioned (empty = disabled). |
+| `DATABASE_URL` query string | — | — | `sslmode` and `channel_binding` are parsed and passed into the DSN (Neon recommends `channel_binding=require`). |
 
 ---
 
@@ -276,7 +278,7 @@ vendor/bin/phpunit --testdox
 
 | Issue | Recommendation |
 |-------|----------------|
-| Token travels in the URL (`?token=`) | Acceptable for 10-minute links; if logs are a concern, switch verify to a POST + short-lived pre-token. |
+| Legacy `?action=magic&token=` GET redemption | Kept for backward compatibility only; new links use the `#magic=` fragment + POST redeem. Remove the legacy path once old links have expired. |
 | `render2faChallenge()` renders a separate standalone HTML page | Merge into the shared admin layout or a proper template if styling drift matters. |
 | Session lifetime is fixed (7 days) in `registerSession` | Make it configurable (`AUTH_SESSION_TTL`). |
 | `CSRF::init()` calls `session_start()` unconditionally | Guard with a `session_status()` check to avoid the notice when Auth already started the session. |

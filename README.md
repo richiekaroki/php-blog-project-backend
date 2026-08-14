@@ -176,7 +176,7 @@ Pushing to `main` triggers an auto-rebuild on Render. Set in the dashboard (neve
 | `MAIL_PASSWORD` | Brevo SMTP key |
 | `APP_URL` | `https://<your-service>.onrender.com` (used to build magic-link URLs) |
 
-`render.yaml` pins the rest (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_FROM_*`, `MAGIC_LINK_TTL=600`, health check path). `MAIL_FROM_ADDRESS` **must be a sender verified in your Brevo account** — if it isn't, Brevo silently rejects every email while the API still returns 200 (set the app's default to a verified sender).
+`render.yaml` pins the rest (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_FROM_*`, `MAGIC_LINK_TTL=600`, `ADMIN_NOTIFICATION_EMAILS`, health check path). `MAIL_FROM_ADDRESS` **must be a sender verified in your Brevo account** — if it isn't, Brevo silently rejects every email while the API still returns 200 (set the app's default to a verified sender). When a brand-new account is auto-provisioned via magic-link sign-in, the app emails every address in `ADMIN_NOTIFICATION_EMAILS` (comma-separated) so you know about new users; leave it empty to disable. `DATABASE_URL` may include `?sslmode=require&channel_binding=require` — both params are now honoured.
 
 **Order of operations for a fresh deploy:** deploy code → apply the latest SQL migration to Neon → set secrets → sign in via magic link.
 

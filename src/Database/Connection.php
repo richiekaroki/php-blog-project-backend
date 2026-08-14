@@ -34,6 +34,14 @@ class Connection
             $username = $dbUrl['user'] ?? 'postgres';
             $password = $dbUrl['pass'] ?? '';
             $sslmode = 'require';
+            $channelBinding = null;
+            // Honour query-string params such as sslmode and channel_binding
+            // (Neon recommends channel_binding=require for SCRAM connections).
+            if (isset($dbUrl['query'])) {
+                parse_str($dbUrl['query'], $q);
+                if (!empty($q['sslmode'])) $sslmode = $q['sslmode'];
+                if (!empty($q['channel_binding'])) $channelBinding = $q['channel_binding'];
+            }
         } elseif ($dbHost) {
             $host = $dbHost;
             $port = $dbPort ?? '5432';
@@ -41,6 +49,7 @@ class Connection
             $username = $dbUser ?? 'postgres';
             $password = $dbPass ?? '';
             $sslmode = 'require';
+            $channelBinding = null;
         } else {
             $env = [];
             $envFile = dirname(__DIR__, 2) . '/.env';
@@ -59,9 +68,13 @@ class Connection
             $username = $env['DB_USERNAME'] ?? 'postgres';
             $password = $env['DB_PASSWORD'] ?? '';
             $sslmode = 'prefer';
+            $channelBinding = null;
         }
 
         $dsn = "pgsql:host=$host;port=$port;dbname=$dbname;sslmode=$sslmode";
+        if (!empty($channelBinding)) {
+            $dsn .= ";channel_binding=$channelBinding";
+        }
 
         try {
             $pdo = new PDO($dsn, $username, $password, [

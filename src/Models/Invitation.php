@@ -89,10 +89,50 @@ class Invitation
 
             ActivityLog::log('signup_auto', 'admin', $userId, ['email' => $email, 'role' => $role]);
 
+            self::notifyAdmins($email, $role, $username);
+
             return ['id' => $userId, 'username' => $username, 'email' => $email, 'role' => $role];
         } catch (\Throwable $e) {
             error_log('Invitation::provision failed: ' . $e->getMessage());
             return null;
+        }
+    }
+
+    /**
+     * Notify the admin(s) in ADMIN_NOTIFICATION_EMAILS (comma-separated) that a
+     * new account was auto-provisioned. Failures are logged but never break the
+     * provisioning flow, so a mail hiccup cannot block sign-in.
+     */
+    private static function notifyAdmins(string $email, string $role, string $username): void
+    {
+        $recipients = array_filter(array_map('trim', explode(',', (string)(getenv('ADMIN_NOTIFICATION_EMAILS') ?: ''))));
+        if ($recipients === []) {
+            return;
+        }
+
+        try {
+            $mailer = new \App\Mail\Mailer();
+            $html = '<!DOCTYPE html><html><body style="font-family:Georgia,serif;background:#FBF9F1;color:#2E2910;padding:24px;">'
+                . '<h1 style="color:#2C5745;">New account auto-provisioned</h1>'
+                . '<p>A new editor account was created automatically via magic-link sign-in:</p>'
+                . '<ul><li><strong>Email:</strong> ' . htmlspecialchars($email, ENT_QUOTES, 'UTF-8') . '</li>'
+                . '<li><strong>Username:</strong> ' . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . '</li>'
+                . '<li><strong>Role:</strong> ' . htmlspecialchars($role, ENT_QUOTES, 'UTF-8') . '</li></ul>'
+                . '<p style="color:#5C5340;font-size:14px;">You can review or change roles in the admin area.</p>'
+                . '</body></html>';
+
+            foreach ($recipients as $to) {
+                $mailer->send(
+                    $to,
+                    'New WAM Blog account: ' . $username,
+                    $html,
+                    "New editor account auto-provisioned:\n\nEmail: $email\nUsername: $username\nRole: $role"
+                );
+            }
+
+            ActivityLog::log('admin_notified', 'admin', null, ['for' => $email, 'recipients' => $recipients]);
+        } catch (\Throwable $e) {
+            error_log('Admin notification failed: ' . $e->getMessage());
         }
     }
 }
