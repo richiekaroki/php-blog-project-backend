@@ -31,8 +31,10 @@ services:
         sync: false
       - key: APP_KEY
         generateValue: true
+      # Must be a sender VERIFIED in the Brevo account, or Brevo rejects the
+      # send (API still returns 200). Verified sender here: karokirichard522@gmail.com.
       - key: MAIL_FROM_ADDRESS
-        value: noreply@wamblog.com
+        value: karokirichard522@gmail.com
       - key: MAIL_FROM_NAME
         value: WAM Blog
       - key: MAGIC_LINK_TTL

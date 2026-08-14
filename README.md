@@ -1,7 +1,7 @@
 # WAM Blog
 
 [![CI](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml/badge.svg)](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml)
-[![Tests](https://img.shields.io/badge/tests-61%20passed-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-62%20passed-brightgreen)](#testing)
 [![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php)](#)
 [![Vue](https://img.shields.io/badge/Vue-3-42b883?logo=vue.js)](#)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql)](#)
@@ -43,7 +43,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 | Backend | PHP 8.4, Nginx + PHP-FPM (Docker) |
 | Database | PostgreSQL 17 (Neon, managed) |
 | Email | Brevo SMTP (magic links) |
-| Testing | PHPUnit (61 tests / 129 assertions) |
+| Testing | PHPUnit (62 tests / 136 assertions) |
 | Hosting | Render (docker runtime) |
 
 ---
@@ -68,7 +68,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 │   ├── index.php / post.php
 │   └── uploads/           # blog images
 ├── sql/                   # schema + migrations (Neon)
-├── tests/                 # PHPUnit (61 tests)
+├── tests/                 # PHPUnit (62 tests)
 ├── Dockerfile / nginx.conf / render.yaml / php-fpm.conf
 └── .env.example
 ```
@@ -161,7 +161,7 @@ Verify: `SELECT count(*) FROM auth_sessions;` and `SELECT count(*) FROM login_ra
 vendor/bin/phpunit --testdox
 ```
 
-61 tests / 129 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, the auth-security suite (single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation), the invitations table (lifecycle, rejection, uniqueness), and auto-provisioning (account creation, existing-account reuse, unique usernames).
+62 tests / 136 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, the auth-security suite (single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation), the invitations table (lifecycle, rejection, uniqueness), auto-provisioning (account creation, existing-account reuse, unique usernames), and per-email/per-IP magic-link throttles.
 
 ---
 
@@ -176,7 +176,7 @@ Pushing to `main` triggers an auto-rebuild on Render. Set in the dashboard (neve
 | `MAIL_PASSWORD` | Brevo SMTP key |
 | `APP_URL` | `https://<your-service>.onrender.com` (used to build magic-link URLs) |
 
-`render.yaml` pins the rest (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_FROM_*`, `MAGIC_LINK_TTL=600`, health check path).
+`render.yaml` pins the rest (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_FROM_*`, `MAGIC_LINK_TTL=600`, health check path). `MAIL_FROM_ADDRESS` **must be a sender verified in your Brevo account** — if it isn't, Brevo silently rejects every email while the API still returns 200 (set the app's default to a verified sender).
 
 **Order of operations for a fresh deploy:** deploy code → apply the latest SQL migration to Neon → set secrets → sign in via magic link.
 

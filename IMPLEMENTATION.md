@@ -258,13 +258,13 @@ Apply in order:
 | `APP_URL` | — | `http://127.0.0.1` | Base URL used to build magic-link URLs (must be the public origin). |
 | `MAGIC_LINK_TTL` | — | `600` | Link lifetime in seconds. |
 | `MAIL_HOST/PORT/USERNAME/PASSWORD` | ✅ | Brevo defaults | SMTP creds. Never commit `MAIL_PASSWORD`. |
-| `MAIL_FROM_ADDRESS/NAME` | — | — | Sender identity. |
+| `MAIL_FROM_ADDRESS/NAME` | — | — | Sender identity. **Must be a Brevo-verified sender**, or Brevo rejects the send while the API returns 200. |
 
 ---
 
 ## 10. Testing
 
-`tests/BlogTest.php` — **61 tests / 129 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, DB-backed IP rate limiting (block/isolate/forwarded-IP), the auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI, the invitation table (lifecycle, rejection, uniqueness), and auto-provisioning (`Invitation::provision`): new-account creation, existing-account reuse without overwriting the role, and unique username derivation.
+`tests/BlogTest.php` — **62 tests / 136 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, DB-backed IP rate limiting (block/isolate/forwarded-IP), email-keyed throttles, the auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI, the invitation table (lifecycle, rejection, uniqueness), and auto-provisioning (`Invitation::provision`): new-account creation, existing-account reuse without overwriting the role, and unique username derivation.
 
 ```bash
 vendor/bin/phpunit --testdox
