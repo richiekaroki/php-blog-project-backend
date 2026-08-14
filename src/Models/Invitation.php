@@ -48,4 +48,51 @@ class Invitation
         $stmt->execute([$email]);
         return (bool)$stmt->fetch();
     }
+
+    /**
+     * Auto-provision an account for an email that does not have one yet.
+     * Returns the user row (existing or newly created) on success, null on error.
+     * New accounts default to the editor role; the username is derived from
+     * the email local-part and made unique with a numeric suffix.
+     */
+    public static function provision(string $email, string $role = 'editor'): ?array
+    {
+        $pdo = Connection::getInstance();
+
+        $stmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE LOWER(email) = ? LIMIT 1");
+        $stmt->execute([$email]);
+        $existing = $stmt->fetch();
+        if ($existing) {
+            return $existing;
+        }
+
+        // Derive a unique username from the email local part.
+        $base = strtolower(preg_replace('/[^a-z0-9_.-]/i', '', explode('@', $email)[0]));
+        if ($base === '' || strlen($base) > 50) {
+            $base = 'user' . substr(bin2hex(random_bytes(4)), 0, 6);
+        }
+        $username = $base;
+        $suffix = 1;
+        while (true) {
+            $dup = $pdo->prepare("SELECT id FROM admins WHERE LOWER(username) = ? LIMIT 1");
+            $dup->execute([$username]);
+            if (!$dup->fetch()) {
+                break;
+            }
+            $username = $base . ($suffix++);
+        }
+
+        try {
+            $ins = $pdo->prepare("INSERT INTO admins (username, email, role) VALUES (?, ?, ?)");
+            $ins->execute([$username, $email, $role]);
+            $userId = (int)$pdo->lastInsertId();
+
+            ActivityLog::log('signup_auto', 'admin', $userId, ['email' => $email, 'role' => $role]);
+
+            return ['id' => $userId, 'username' => $username, 'email' => $email, 'role' => $role];
+        } catch (\Throwable $e) {
+            error_log('Invitation::provision failed: ' . $e->getMessage());
+            return null;
+        }
+    }
 }

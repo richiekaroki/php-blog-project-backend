@@ -1,6 +1,7 @@
 <?php
-// admin/users.php - User & invitation management (admin only)
-// Admins approve/reject pending sign-up requests and change user roles.
+// admin/users.php - User management (admin only)
+// Admins change user roles and delete users. Accounts are self-served at
+// /signup.php (any email becomes an editor), so no approval is needed here.
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
@@ -25,63 +26,6 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!CSRF::verify($_POST['csrf_token'] ?? '')) {
         $error = 'Invalid CSRF token. Please reload and try again.';
-    } elseif (isset($_POST['approve_invite'])) {
-        $id = (int)$_POST['approve_invite'];
-        $stmt = $pdo->prepare("SELECT * FROM invitations WHERE id = ? AND accepted_at IS NULL AND rejected_at IS NULL LIMIT 1");
-        $stmt->execute([$id]);
-        $invite = $stmt->fetch();
-        if (!$invite) {
-            $error = 'Invitation not found or already processed.';
-        } elseif (strtotime($invite['expires_at']) < time()) {
-            $error = 'Invitation has expired. Ask the user to request access again.';
-        } else {
-            $email = $invite['email'];
-            $role = in_array($invite['role'], ['admin', 'editor', 'viewer'], true) ? $invite['role'] : 'editor';
-
-            // Derive a unique username from the email local part.
-            $base = strtolower(preg_replace('/[^a-z0-9_.-]/i', '', explode('@', $email)[0]));
-            if ($base === '' || strlen($base) > 50) {
-                $base = 'user' . substr(bin2hex(random_bytes(4)), 0, 6);
-            }
-            $username = $base;
-            $suffix = 1;
-            while (true) {
-                $dup = $pdo->prepare("SELECT id FROM admins WHERE LOWER(username) = ? LIMIT 1");
-                $dup->execute([$username]);
-                if (!$dup->fetch()) {
-                    break;
-                }
-                $username = $base . ($suffix++);
-            }
-
-            try {
-                $ins = $pdo->prepare("INSERT INTO admins (username, email, role) VALUES (?, ?, ?)");
-                $ins->execute([$username, $email, $role]);
-                $newUserId = (int)$pdo->lastInsertId();
-
-                $upd = $pdo->prepare("UPDATE invitations SET accepted_at = NOW(), invited_by = ? WHERE id = ?");
-                $upd->execute([$currentAdmin['id'] ?? null, $id]);
-
-                ActivityLog::log('signup_approved', 'invitation', $newUserId, ['email' => $email, 'role' => $role, 'approved_by' => $_SESSION['admin']]);
-                $success = "Approved access for $email (username: $username, role: $role).";
-            } catch (\Throwable $e) {
-                error_log('Approve invitation failed: ' . $e->getMessage());
-                $error = 'Could not approve this request. Please try again.';
-            }
-        }
-    } elseif (isset($_POST['reject_invite'])) {
-        $id = (int)$_POST['reject_invite'];
-        $stmt = $pdo->prepare("SELECT email FROM invitations WHERE id = ? AND accepted_at IS NULL AND rejected_at IS NULL LIMIT 1");
-        $stmt->execute([$id]);
-        $invite = $stmt->fetch();
-        if (!$invite) {
-            $error = 'Invitation not found or already processed.';
-        } else {
-            $upd = $pdo->prepare("UPDATE invitations SET rejected_at = NOW(), invited_by = ? WHERE id = ?");
-            $upd->execute([$currentAdmin['id'] ?? null, $id]);
-            ActivityLog::log('signup_rejected', 'invitation', null, ['email' => $invite['email'], 'rejected_by' => $_SESSION['admin']]);
-            $success = 'Rejected access for ' . $invite['email'] . '.';
-        }
     } elseif (isset($_POST['change_role'])) {
         $userId = (int)$_POST['user_id'];
         $newRole = $_POST['role'] ?? '';
@@ -139,13 +83,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
-// Pending invitations (not processed, not expired)
-$pending = $pdo->query(
-    "SELECT * FROM invitations
-     WHERE accepted_at IS NULL AND rejected_at IS NULL AND expires_at > NOW()
-     ORDER BY created_at DESC"
-)->fetchAll(PDO::FETCH_ASSOC);
 
 // All users
 $users = $pdo->query("SELECT id, username, email, role, totp_secret FROM admins ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -286,56 +223,6 @@ $users = $pdo->query("SELECT id, username, email, role, totp_secret FROM admins 
                     <div class="alert error"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
 
-                <!-- Pending sign-up requests -->
-                <div class="card">
-                    <div class="card-header">
-                        <h2>Pending access requests</h2>
-                        <span style="font-size: 0.8rem; color: var(--muted-fg);"><?php echo count($pending); ?> awaiting review</span>
-                    </div>
-                    <div class="card-body" style="padding: 0;">
-                        <?php if (empty($pending)): ?>
-                            <div class="empty-state">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                                <p>No pending requests. New sign-ups will appear here for approval.</p>
-                            </div>
-                        <?php else: ?>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Email</th>
-                                        <th>Role</th>
-                                        <th>Requested</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($pending as $invite): ?>
-                                        <tr>
-                                            <td><?php echo htmlspecialchars($invite['email'], ENT_QUOTES, 'UTF-8'); ?></td>
-                                            <td><span class="badge <?php echo htmlspecialchars($invite['role'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($invite['role'], ENT_QUOTES, 'UTF-8'); ?></span></td>
-                                            <td style="font-size: 0.85rem; color: var(--muted-fg);"><?php echo htmlspecialchars(date('M j, Y H:i', strtotime($invite['created_at'])), ENT_QUOTES, 'UTF-8'); ?></td>
-                                            <td>
-                                                <div style="display: flex; gap: 0.5rem;">
-                                                    <form method="POST" action="users.php" style="display: inline;">
-                                                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                                                        <input type="hidden" name="approve_invite" value="<?php echo $invite['id']; ?>">
-                                                        <button type="submit" class="btn btn-primary btn-sm">Approve</button>
-                                                    </form>
-                                                    <form method="POST" action="users.php" style="display: inline;" onsubmit="return confirm('Reject this request? The visitor will be told to try again.');">
-                                                        <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                                                        <input type="hidden" name="reject_invite" value="<?php echo $invite['id']; ?>">
-                                                        <button type="submit" class="btn btn-danger btn-sm">Reject</button>
-                                                    </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
                 <!-- All users -->
                 <div class="card">
                     <div class="card-header">
@@ -391,7 +278,7 @@ $users = $pdo->query("SELECT id, username, email, role, totp_secret FROM admins 
                 <div class="card">
                     <div class="card-body">
                         <p style="font-size: 0.85rem; color: var(--muted-fg);">
-                            <strong>Roles:</strong> <strong>admin</strong> — full access (approve sign-ups, manage users, delete anything) &middot; <strong>editor</strong> — create and edit posts &amp; categories, no deleting &middot; <strong>viewer</strong> — read-only dashboard access.
+                            <strong>Roles:</strong> <strong>admin</strong> — full access (manage users and roles, delete anything) &middot; <strong>editor</strong> — create and edit posts &amp; categories, no deleting &middot; <strong>viewer</strong> — read-only dashboard access. Anyone can sign up with their email and starts as an editor.
                         </p>
                     </div>
                 </div>

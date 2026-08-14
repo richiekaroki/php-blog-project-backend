@@ -192,6 +192,7 @@ class BlogTest extends TestCase
         $this->assertSame('not-an-ip', \App\Middleware\RateLimit::clientIp());
 
         // Restore
+        $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
         if ($original === null) {
             unset($_SERVER['HTTP_CF_CONNECTING_IP']);
         } else {
@@ -826,5 +827,57 @@ class BlogTest extends TestCase
         $this->assertEquals(1, (int)$stmt->fetch()['count']);
 
         $this->pdo->prepare("DELETE FROM invitations WHERE email = ?")->execute([$email]);
+    }
+
+    public function testProvisionCreatesAccountForNewEmail()
+    {
+        $email = 'provision-test-' . bin2hex(random_bytes(3)) . '@example.com';
+
+        $user = \App\Models\Invitation::provision($email, 'editor');
+        $this->assertNotNull($user, 'provision should return the new user');
+        $this->assertEquals($email, $user['email']);
+        $this->assertEquals('editor', $user['role']);
+
+        $stmt = $this->pdo->prepare("SELECT username, email, role FROM admins WHERE LOWER(email) = ?");
+        $stmt->execute([$email]);
+        $row = $stmt->fetch();
+        $this->assertNotEmpty($row, 'account should exist in admins');
+        $this->assertEquals('editor', $row['role']);
+
+        $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute([$email]);
+    }
+
+    public function testProvisionReturnsExistingAccountWithoutDuplicating()
+    {
+        $email = 'provision-existing-' . bin2hex(random_bytes(3)) . '@example.com';
+        $this->pdo->prepare("INSERT INTO admins (username, email, role) VALUES (?, ?, ?)")
+            ->execute(['prov-test-' . substr($email, 0, 8), $email, 'viewer']);
+
+        $user = \App\Models\Invitation::provision($email, 'editor');
+        $this->assertNotNull($user, 'provision should return the existing user');
+        $this->assertEquals('viewer', $user['role'], 'existing role must not be overwritten');
+
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM admins WHERE email = ?");
+        $stmt->execute([$email]);
+        $this->assertEquals(1, (int)$stmt->fetch()['count']);
+
+        $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute([$email]);
+    }
+
+    public function testProvisionDerivesUniqueUsername()
+    {
+        $email = 'prov-' . bin2hex(random_bytes(3)) . '@example.com';
+        $base = explode('@', $email)[0];
+        // Pre-create the same base username so the second account needs a suffix.
+        $this->pdo->prepare("INSERT INTO admins (username, email, role) VALUES (?, ?, ?)")
+            ->execute([$base, 'other-' . $email, 'viewer']);
+
+        $user = \App\Models\Invitation::provision($email, 'editor');
+        $this->assertNotNull($user);
+        $this->assertNotEquals($base, $user['username'], 'username should get a numeric suffix when taken');
+        $this->assertStringStartsWith($base, $user['username']);
+
+        $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute(['other-' . $email]);
     }
 }

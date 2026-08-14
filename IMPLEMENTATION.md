@@ -220,14 +220,14 @@ API responses use the shared `sendResponse` helper (adds `request_id`).
 ### A. Vue public site (dev & production)
 
 1. Landing page → **Enter the blog** → `/login` (`LoginView.vue`).
-2. Email submitted → `POST /api/magic/request`.
+2. Email submitted → `POST /api/magic/request` → account auto-created (editor) if it doesn't exist, link emailed.
 3. "Check your inbox — the link expires in 10 minutes."
 4. User clicks the emailed link → `https://<app>/admin/login.php?action=magic&token=...` → PHP flow takes over (single-use, 2FA, session) → redirected to `blogs.php`.
 
 ### B. PHP admin
 
 1. `/admin/login.php` → email form.
-2. `POST magic_email` → CSRF-verified, admin looked up by email (same generic success message either way — no account leaking), token created (TTL 600) and emailed.
+2. `POST magic_email` → CSRF-verified, account auto-created (editor) if the email is new, token created (TTL 600) and emailed.
 3. Click link → `?action=magic&token=` → verify + consume → 2FA challenge if enabled → `Auth::registerSession` → `Location: blogs.php`.
 4. `?action=status` returns JSON auth state (for the Vue frontend). `?action=logout` runs `Auth::logout()`.
 
@@ -241,7 +241,7 @@ Apply in order:
 |------|---------|
 | `sql/ruru_schema.sql` | Base schema: `admins`, `roles`, `user_roles`, `blogs`, `activity_log` |
 | `sql/migrations/2026_add_admin_email.sql` | Adds `admins.email` |
-| `sql/migrations/2026_08_13_create_invitations.sql` | `invitations` table for sign-up requests |
+| `sql/migrations/2026_08_13_create_invitations.sql` | `invitations` table (legacy sign-up requests; kept for compatibility) |
 | `sql/migrations/2026_08_13_magic_link_security.sql` | `magic_link_uses`, `auth_sessions`, `admins.totp_secret` |
 
 **Neon / Render note:** migrations do not run automatically on deploy. Apply `2026_08_13_magic_link_security.sql` to the Neon database using the direct (non-pooler) connection — see README §Neon Migration.
@@ -264,7 +264,7 @@ Apply in order:
 
 ## 10. Testing
 
-`tests/BlogTest.php` — **58 tests / 118 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, DB-backed IP rate limiting (block/isolate/forwarded-IP), the auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI, and the invitation flow: `invitations` table + partial pending index, lifecycle (pending → accepted), rejection distinctness, and email uniqueness with `ON CONFLICT` upsert.
+`tests/BlogTest.php` — **61 tests / 129 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, DB-backed IP rate limiting (block/isolate/forwarded-IP), the auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI, the invitation table (lifecycle, rejection, uniqueness), and auto-provisioning (`Invitation::provision`): new-account creation, existing-account reuse without overwriting the role, and unique username derivation.
 
 ```bash
 vendor/bin/phpunit --testdox

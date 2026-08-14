@@ -43,7 +43,7 @@ A single Docker container serves both the public Vue SPA and the PHP admin/API f
 | Path | Flow |
 |------|------|
 | `GET /` (public site) | Nginx `try_files` → `frontend/dist/index.html` → Vue Router → `LandingView` fetches blogs/categories from `/api/index.php?action=blogs`. |
-| `POST /api/magic/request` | Public → validate email → if admin exists, create signed token + send Brevo email. Same response either way (no account leak). |
+| `POST /api/magic/request` | Public → validate email → auto-provision an account (editor) if none exists → create signed token + send Brevo email. |
 | `GET /admin/login.php?action=magic&token=…` | Verify HMAC → **single-use consume** → optional TOTP challenge → `Auth::registerSession` → redirect to `blogs.php`. |
 | `GET /api/index.php?action=blogs` (public) | Read path — no auth. Paginated, searchable, filtered. |
 | `POST/PUT/DELETE /api/*` | **Write gate**: `Auth::startSession` + `isSessionValid` + per-endpoint role (`admin`/`editor`/`viewer`). |
@@ -131,7 +131,7 @@ Layered defense-in-depth:
 | `roles` / `user_roles` | Legacy role join | Reserved for future RBAC migration |
 | `blogs` | Posts | `title`, `slug`, `content`, `category_id`, `image`, `published`, timestamps |
 | `categories` | Taxonomy | `name`, `slug` |
-| `invitations` | Sign-up requests | `email` UNIQUE, `token`, `role`, `expires_at`, `accepted_at`, `rejected_at` |
+| `invitations` | Legacy sign-up request table | `email` UNIQUE, `token`, `role`, `expires_at`, `accepted_at`, `rejected_at` (kept for compatibility; new sign-ups auto-provision directly) |
 | `activity_log` | Audit log | `actor_id`, `event`, `category`, `metadata` |
 
 ### 5.2 Auth/session tables (migration `2026_08_13_magic_link_security`)
@@ -166,7 +166,7 @@ Apply in order: `ruru_schema.sql` → `2026_add_admin_email.sql` → `2026_08_13
 | `/api/index.php?action=upload` | POST | admin/editor | Image upload (multipart) |
 | `/api/index.php?action=activity` | GET | — | Activity feed |
 | `/api/index.php?action=magic/request` | POST | Public | Send magic link |
-| `/api/index.php?action=signup-request` | POST | Public | Request an account |
+| `/api/index.php?action=signup-request` | POST | Public | Create an account & send sign-in link |
 | `/api/index.php?action=profile` | GET/PUT | Authenticated | Profile read/update |
 
 Path routing (`/api/blogs`, `/api/blogs/1`) and query routing (`?action=blogs&id=1`) are both supported.

@@ -1,7 +1,7 @@
 # WAM Blog
 
 [![CI](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml/badge.svg)](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml)
-[![Tests](https://img.shields.io/badge/tests-51%20passed-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-61%20passed-brightgreen)](#testing)
 [![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php)](#)
 [![Vue](https://img.shields.io/badge/Vue-3-42b883?logo=vue.js)](#)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql)](#)
@@ -26,7 +26,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 - 🧾 **Server-side session registry** — every login recorded in `auth_sessions`; logout & "sign out other devices" revoke sessions instantly.
 - 🚦 **DB-backed IP rate limiting** — magic-link requests, 2FA attempts, and API requests all capped per-minute, keyed on hashed IP (cookies can't reset it).
 - 👥 **Role-based access control** — `admin` (full), `editor` (create/edit), `viewer` (read-only), enforced server-side on the API **and** PHP admin pages.
-- 📨 **Invite-based sign-ups** — visitors request access via `/signup.php`; admins approve/reject in the Users panel. Approved users become editors and sign in with magic links. No self-service admin accounts.
+- 📨 **Instant sign-ups** — any email can create an account (starts as `editor`) at `/signup.php` or by requesting a sign-in link; a magic link arrives immediately. No admin approval required.
 - 🐘 **PostgreSQL + PDO** — parameterized queries throughout, search/filter/pagination, image uploads with validation.
 - 🕷️ **SEO-friendly** — crawlers get the fully server-rendered landing page (nginx bot UA detection); humans get the Vue SPA.
 - 🔎 **Activity feed** — `activity.php` surfaces sign-ins, 2FA enable/disable, session revocations, and content edits with human-readable labels.
@@ -43,7 +43,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 | Backend | PHP 8.4, Nginx + PHP-FPM (Docker) |
 | Database | PostgreSQL 17 (Neon, managed) |
 | Email | Brevo SMTP (magic links) |
-| Testing | PHPUnit (58 tests / 118 assertions) |
+| Testing | PHPUnit (61 tests / 129 assertions) |
 | Hosting | Render (docker runtime) |
 
 ---
@@ -68,7 +68,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 │   ├── index.php / post.php
 │   └── uploads/           # blog images
 ├── sql/                   # schema + migrations (Neon)
-├── tests/                 # PHPUnit (58 tests)
+├── tests/                 # PHPUnit (61 tests)
 ├── Dockerfile / nginx.conf / render.yaml / php-fpm.conf
 └── .env.example
 ```
@@ -161,7 +161,7 @@ Verify: `SELECT count(*) FROM auth_sessions;` and `SELECT count(*) FROM login_ra
 vendor/bin/phpunit --testdox
 ```
 
-58 tests / 118 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, the auth-security suite (single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation), and the sign-up/approval flow (invitations table, lifecycle, rejection, uniqueness).
+61 tests / 129 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, the auth-security suite (single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation), the invitations table (lifecycle, rejection, uniqueness), and auto-provisioning (account creation, existing-account reuse, unique usernames).
 
 ---
 
@@ -189,7 +189,7 @@ Pushing to `main` triggers an auto-rebuild on Render. Set in the dashboard (neve
 3. **2FA (optional)** → if `totp_secret` is set, a TOTP challenge page appears *before* any session is created.
 4. **Server-side session** → `Auth::registerSession` rotates the PHP session ID and records `auth_sessions`; `Auth::check` validates every request against it (revoked/expired sessions fail closed).
 5. **Roles** → enforced per-endpoint (API write gate) and per-page (PHP admin).
-6. **Sign-up** → visitors request access at `/signup.php`; a pending `invitations` row is created. Admins approve/reject requests in the **Users** panel (`/admin/users.php`); approval creates an account (default `editor`) and the new user signs in via magic link.
+6. **Sign-up** → any email can create an account at `/signup.php` or by entering their email on the login page. If no account exists, one is auto-created (`editor` role) and a sign-in link is emailed immediately — no admin approval needed.
 
 See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the full flow and [DESIGN.md](DESIGN.md) for the architecture.
 
@@ -208,7 +208,7 @@ See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the full flow and [DESIGN.md](DES
 | `/api/index.php?action=health` | GET | Public | Status |
 | `/api/index.php?action=upload` | POST | admin, editor | Image upload |
 | `/api/index.php?action=magic/request` | POST | Public | Send magic link |
-| `/api/index.php?action=signup-request` | POST | Public | Request an account |
+| `/api/index.php?action=signup-request` | POST | Public | Create an account & send sign-in link |
 | `/api/index.php?action=profile` | GET, PUT | Authenticated | Read / update profile |
 
 Path-style routing (`/api/blogs`, `/api/blogs/1`) is supported too.

@@ -617,45 +617,45 @@ function handleMagic($method, $pdo) {
         sendResponse(400, ['error' => 'A valid email address is required']);
     }
 
-    // Look up admin by email (no password involved)
-    $stmt = $pdo->prepare("SELECT id, username, email FROM admins WHERE LOWER(email) = ? LIMIT 1");
-    $stmt->execute([$email]);
-    $user = $stmt->fetch();
-
-    // Always return the same generic response to avoid leaking which emails are registered.
-    if ($user) {
-        try {
-            $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
-            $magic = new MagicLink();
-            $token = $magic->create($email, $ttl);
-
-            $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
-            $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
-
-            $mailer = new Mailer();
-            $mailer->send(
-                $email,
-                'Your WAM Blog sign in link',
-                $emailHtml($loginUrl),
-                "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
-            );
-
-            ActivityLog::log('magic_link_sent', 'auth', (int)$user['id'], ['email' => $email]);
-        } catch (\Throwable $e) {
-            error_log('Magic link send failed: ' . $e->getMessage());
-            sendResponse(500, ['error' => 'Could not send the sign in link. Please try again later.']);
-        }
+    // Auto-provision: any email gets a sign in link; if no account exists
+    // yet, one is created (editor role) so first-time sign-in is smooth.
+    $user = \App\Models\Invitation::provision($email, 'editor');
+    if ($user === null) {
+        sendResponse(500, ['error' => 'Could not process your request. Please try again later.']);
     }
 
-    sendResponse(200, ['success' => true, 'message' => 'If that email is registered, a sign in link is on its way.']);
+    try {
+        $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
+        $magic = new MagicLink();
+        $token = $magic->create($email, $ttl);
+
+        $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
+        $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
+
+        $mailer = new Mailer();
+        $mailer->send(
+            $email,
+            'Your WAM Blog sign in link',
+            emailHtml($loginUrl),
+            "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
+        );
+
+        ActivityLog::log('magic_link_sent', 'auth', (int)$user['id'], ['email' => $email]);
+    } catch (\Throwable $e) {
+        error_log('Magic link send failed: ' . $e->getMessage());
+        sendResponse(500, ['error' => 'Could not send the sign in link. Please try again later.']);
+    }
+
+    sendResponse(200, ['success' => true, 'message' => 'We sent a sign in link to your inbox.']);
 }
 
 /**
  * Handle a passwordless sign-up request.
  * POST /api/signup-request  { "email": "..." }
  *
- * Stores a pending invitation token and emails a secure link to the owner.
- * An admin later approves the request and the user becomes an admin.
+ * Auto-provisions an account (editor role) for any email and emails a
+ * sign-in link so the new user can get going immediately. No admin
+ * approval is required.
  */
 function handleSignupRequest($method, $pdo) {
     if ($method !== 'POST') {
@@ -669,35 +669,33 @@ function handleSignupRequest($method, $pdo) {
         sendResponse(400, ['error' => 'A valid email address is required']);
     }
 
-    // If the visitor already has an account, send them a real magic link so
-    // they can sign in right away.
-    if (\App\Models\Invitation::isAdmin($email)) {
-        try {
-            $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
-            $magic = new MagicLink();
-            $token = $magic->create($email, $ttl);
-            $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
-            $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
-            $mailer = new Mailer();
-            $mailer->send($email, 'Your WAM Blog sign in link', emailHtml($loginUrl), "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes.");
-        } catch (\Throwable $e) {
-            error_log('Magic link send failed: ' . $e->getMessage());
-        }
-        sendResponse(200, [
-            'success' => true,
-            'message' => 'An account already exists for this email. We sent a sign in link to your inbox.',
-            'existing' => true
-        ]);
-        return;
-    }
-
-    // Create or re-use a pending invitation awaiting admin approval.
-    $invite = \App\Models\Invitation::request($email, 'editor');
-    if ($invite === false) {
+    $user = \App\Models\Invitation::provision($email, 'editor');
+    if ($user === null) {
         sendResponse(500, ['error' => 'Could not process your request. Please try again later.']);
     }
 
-    sendResponse(200, ['success' => true, 'message' => 'Your request has been submitted. An administrator will review it shortly.']);
+    try {
+        $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
+        $magic = new MagicLink();
+        $token = $magic->create($email, $ttl);
+        $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
+        $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
+
+        $mailer = new Mailer();
+        $mailer->send(
+            $email,
+            'Welcome to WAM Blog — sign in',
+            emailHtml($loginUrl),
+            "Welcome to WAM Blog. Open this link to sign in:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
+        );
+
+        ActivityLog::log('magic_link_sent', 'auth', (int)$user['id'], ['email' => $email]);
+    } catch (\Throwable $e) {
+        error_log('Sign up magic link send failed: ' . $e->getMessage());
+        sendResponse(500, ['error' => 'Could not send the sign in link. Please try again later.']);
+    }
+
+    sendResponse(200, ['success' => true, 'message' => 'Your account is ready. We sent a sign in link to your inbox.', 'existing' => false]);
 }
 
 function emailHtml(string $loginUrl): string {

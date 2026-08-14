@@ -28,7 +28,8 @@ $wantsJson = str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')
 header('Content-Type: ' . ($wantsJson ? 'application/json' : 'text/html; charset=UTF-8'));
 
 // Handle passwordless magic link request (HTML form POST)
-// The email must belong to a registered admin; otherwise no email is sent (no account leaking).
+// Any email can request a link; if no account exists yet, one is auto-created
+// (editor role) so first-time sign-in is smooth.
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
     if (!CSRF::verify($_POST['csrf_token'] ?? '')) {
         http_response_code(400);
@@ -43,39 +44,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
         if (!filter_var($magicEmail, FILTER_VALIDATE_EMAIL)) {
             $magicError = 'Please enter a valid email address.';
         } else {
-            $stmt = $pdo->prepare("SELECT id, email FROM admins WHERE LOWER(email) = ? LIMIT 1");
-            $stmt->execute([$magicEmail]);
-            $user = $stmt->fetch();
+            try {
+                // Auto-provision: create the account if this is a new email.
+                $user = \App\Models\Invitation::provision($magicEmail, 'editor');
 
-            // Always show the same generic confirmation to avoid revealing registered emails.
-            if ($user) {
-                try {
-                    $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
-                    $magic = new MagicLink();
-                    $token = $magic->create($magicEmail, $ttl);
+                $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
+                $magic = new MagicLink();
+                $token = $magic->create($magicEmail, $ttl);
 
-                    $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
-                    $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
-                    $safeUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
+                $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
+                $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
+                $safeUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
 
-                    $htmlBody = '<!DOCTYPE html><html><body style="font-family:Georgia,serif;background:#FBF9F1;color:#2E2910;padding:24px;text-align:center;">'
-                        . '<h1 style="color:#2C5745;">Sign in to WAM Blog</h1>'
-                        . '<p>Click the button below to sign in. This link is valid for 10 minutes.</p>'
-                        . '<a href="' . $safeUrl . '" style="display:inline-block;margin:16px auto;padding:12px 24px;background:#2C5745;color:#fff;text-decoration:none;border-radius:8px;">Sign In</a>'
-                        . '<p style="color:#5C5340;font-size:14px;">If you did not request this, you can safely ignore this email.</p>'
-                        . '</body></html>';
+                $htmlBody = '<!DOCTYPE html><html><body style="font-family:Georgia,serif;background:#FBF9F1;color:#2E2910;padding:24px;text-align:center;">'
+                    . '<h1 style="color:#2C5745;">Sign in to WAM Blog</h1>'
+                    . '<p>Click the button below to sign in. This link is valid for 10 minutes.</p>'
+                    . '<a href="' . $safeUrl . '" style="display:inline-block;margin:16px auto;padding:12px 24px;background:#2C5745;color:#fff;text-decoration:none;border-radius:8px;">Sign In</a>'
+                    . '<p style="color:#5C5340;font-size:14px;">If you did not request this, you can safely ignore this email.</p>'
+                    . '</body></html>';
 
-                    $mailer = new Mailer();
-                    $mailer->send(
-                        $magicEmail,
-                        'Your WAM Blog sign in link',
-                        $htmlBody,
-                        "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
-                    );
-                } catch (\Throwable $e) {
-                    error_log('Magic link send failed: ' . $e->getMessage());
-                    $magicError = 'Could not send the sign in link. Please try again later.';
-                }
+                $mailer = new Mailer();
+                $mailer->send(
+                    $magicEmail,
+                    'Your WAM Blog sign in link',
+                    $htmlBody,
+                    "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
+                );
+
+                ActivityLog::log('magic_link_sent', 'auth', (int)($user['id'] ?? 0), ['email' => $magicEmail]);
+            } catch (\Throwable $e) {
+                error_log('Magic link send failed: ' . $e->getMessage());
+                $magicError = 'Could not send the sign in link. Please try again later.';
             }
 
             if (!isset($magicError)) {
@@ -664,7 +663,7 @@ function render2faChallenge(?string $error = null): void
         </div>
         
          <p class="footer-text">A place for thoughtful stories and ideas.</p>
-         <p class="footer-text" style="margin-top: 0.5rem;">Need an account? <a href="/signup.php" style="color: var(--color-forest-green);">Request access</a></p>
+         <p class="footer-text" style="margin-top: 0.5rem;">New here? <a href="/signup.php" style="color: var(--color-forest-green);">Create an account</a></p>
          <button id="theme-toggle" type="button" aria-label="Toggle dark mode" class="theme-toggle" title="Toggle dark mode">
            🌙
          </button>
