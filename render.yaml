@@ -24,6 +24,11 @@ services:
       # Set MAIL_PASSWORD (SMTP key) in the Render dashboard — never commit secrets.
       - key: MAIL_PASSWORD
         sync: false
+      # Brevo Transactional Email API key. When set, mail is sent over HTTPS
+      # (port 443) instead of raw SMTP — required on Render's free tier, which
+      # blocks outbound SMTP ports (25/465/587). Set in the Render dashboard.
+      - key: BREVO_API_KEY
+        sync: false
       - key: APP_KEY
         generateValue: true
       - key: MAIL_FROM_ADDRESS

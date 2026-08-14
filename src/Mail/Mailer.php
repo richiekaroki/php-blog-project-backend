@@ -15,6 +15,7 @@ class Mailer
     private string $fromAddress;
     private string $fromName;
     private int $timeout;
+    private string $apiKey;
 
     public function __construct(array $config = [])
     {
@@ -40,6 +41,10 @@ class Mailer
         $this->fromAddress = $config['from_address'];
         $this->fromName = $config['from_name'];
         $this->timeout = $config['timeout'];
+        // Brevo HTTP API key (v3). When set, mail is sent over HTTPS via the
+        // Brevo API instead of raw SMTP — required on Render's free tier, which
+        // blocks outbound SMTP ports (25/465/587).
+        $this->apiKey = self::env('BREVO_API_KEY', '');
     }
 
     /**
@@ -49,11 +54,18 @@ class Mailer
      */
     public function send(string $to, string $subject, string $htmlBody, string $textBody = ''): void
     {
+        $textBody = $textBody !== '' ? $textBody : strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $htmlBody));
+
+        // Prefer the Brevo HTTP API when an API key is present (works on
+        // Render's free tier, which blocks outbound SMTP ports).
+        if ($this->apiKey !== '') {
+            $this->sendViaBrevoApi($to, $subject, $htmlBody, $textBody);
+            return;
+        }
+
         if ($this->username === '' || $this->password === '') {
             throw new \RuntimeException('SMTP credentials (MAIL_USERNAME / MAIL_PASSWORD) are not configured.');
         }
-
-        $textBody = $textBody !== '' ? $textBody : strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $htmlBody));
 
         $socket = $this->connect();
         try {
@@ -110,6 +122,51 @@ class Mailer
             $this->command($socket, 'QUIT');
         } finally {
             fclose($socket);
+        }
+    }
+
+    /**
+     * Send via the Brevo Transactional Email HTTP API (v3).
+     * HTTPS (443) is allowed on Render's free tier, unlike SMTP ports.
+     *
+     * @throws \RuntimeException on failure
+     */
+    private function sendViaBrevoApi(string $to, string $subject, string $htmlBody, string $textBody): void
+    {
+        $payload = [
+            'sender' => ['name' => $this->fromName, 'email' => $this->fromAddress],
+            'to' => [['email' => $to]],
+            'subject' => $subject,
+            'htmlContent' => $htmlBody,
+        ];
+        if ($textBody !== '') {
+            $payload['textContent'] = $textBody;
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => implode("\r\n", [
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                    'api-key: ' . $this->apiKey,
+                ]),
+                'content' => json_encode($payload),
+                'timeout' => $this->timeout,
+                'ignore_errors' => true,
+            ],
+        ]);
+
+        $response = @file_get_contents('https://api.brevo.com/v3/smtp/email', false, $context);
+
+        $status = 0;
+        if (isset($http_response_header[0]) && preg_match('/\s(\d{3})\s/', $http_response_header[0], $m)) {
+            $status = (int)$m[1];
+        }
+
+        if ($status < 200 || $status >= 300) {
+            $detail = is_string($response) && $response !== '' ? trim($response) : '';
+            throw new \RuntimeException("Brevo API error (HTTP $status): " . ($detail ?: 'empty response'));
         }
     }
 
