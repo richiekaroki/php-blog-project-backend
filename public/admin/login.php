@@ -53,7 +53,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
                 $token = $magic->create($magicEmail, $ttl);
 
                 $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
-                $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
+                // Deliver the token in the URL fragment (#magic=...) instead of the
+                // query string so it never appears in server/referer logs.
+                $loginUrl = $appUrl . '/admin/login.php#magic=' . urlencode($token);
                 $safeUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
 
                 $htmlBody = '<!DOCTYPE html><html><body style="font-family:Georgia,serif;background:#FBF9F1;color:#2E2910;padding:24px;text-align:center;">'
@@ -84,14 +86,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
     }
 }
 
-// Handle magic link verification (passwordless sign in)
-if (isset($_GET['action']) && $_GET['action'] === 'magic') {
-    $token = $_GET['token'] ?? '';
-    if ($token === '') {
-        http_response_code(400);
-        die('Missing token.');
-    }
-
+// Shared redemption logic for magic-link tokens. Emits an HTTP error (via die)
+// on failure, otherwise signs the user in (establishing the session) and exits.
+function redeemMagicToken($pdo, string $token): void
+{
     $magic = new MagicLink();
     $email = $magic->verify($token);
 
@@ -147,6 +145,33 @@ if (isset($_GET['action']) && $_GET['action'] === 'magic') {
         header("Location: blogs.php");
     }
     exit;
+}
+
+// Legacy query-string redemption (?action=magic&token=...) — still accepted so
+// previously-issued links keep working, but new links use the fragment instead.
+if (isset($_GET['action']) && $_GET['action'] === 'magic') {
+    $token = $_GET['token'] ?? '';
+    if ($token === '') {
+        http_response_code(400);
+        die('Missing token.');
+    }
+    redeemMagicToken($pdo, $token);
+}
+
+// Fragment-based redemption (#magic=...). The token never travels in the query
+// string, so it is absent from server logs, browser history, and Referer headers.
+// The browser posts it here as JSON from a small snippet on this page.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'redeem_magic') {
+    if (!CSRF::verify($_POST['csrf_token'] ?? '')) {
+        http_response_code(403);
+        die('Invalid CSRF token. Please reload and try again.');
+    }
+    $token = $_POST['magic_token'] ?? '';
+    if ($token === '') {
+        http_response_code(400);
+        die('Missing token.');
+    }
+    redeemMagicToken($pdo, $token);
 }
 
 // Handle 2FA code submission (only valid when a magic link has set a pending email)
@@ -669,6 +694,53 @@ function render2faChallenge(?string $error = null): void
          </button>
      </div>
 
+    <script>
+        // Redeem a magic-link token delivered in the URL fragment (#magic=...).
+        // POSTing it keeps the token out of the query string (server logs,
+        // browser history, Referer headers).
+        (function () {
+            const hash = window.location.hash;
+            if (!hash || !hash.startsWith('#magic=')) return;
+
+            const token = decodeURIComponent(hash.slice('#magic='.length));
+            const csrf = document.querySelector('input[name="csrf_token"]');
+            const csrfToken = csrf ? csrf.value : '';
+
+            if (!csrfToken) {
+                window.location.replace('/admin/login.php');
+                return;
+            }
+
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'login.php';
+            form.style.display = 'none';
+
+            const hiddenAction = document.createElement('input');
+            hiddenAction.type = 'hidden';
+            hiddenAction.name = 'action';
+            hiddenAction.value = 'redeem_magic';
+
+            const hiddenToken = document.createElement('input');
+            hiddenToken.type = 'hidden';
+            hiddenToken.name = 'magic_token';
+            hiddenToken.value = token;
+
+            const hiddenCsrf = document.createElement('input');
+            hiddenCsrf.type = 'hidden';
+            hiddenCsrf.name = 'csrf_token';
+            hiddenCsrf.value = csrfToken;
+
+            form.appendChild(hiddenAction);
+            form.appendChild(hiddenToken);
+            form.appendChild(hiddenCsrf);
+            document.body.appendChild(form);
+
+            // Clear the fragment immediately so the token doesn't linger in the URL.
+            history.replaceState(null, '', window.location.pathname);
+            form.submit();
+        })();
+    </script>
     <script>
         // Toggle dark mode (persists preference in localStorage)
         const savedTheme = localStorage.getItem('theme');

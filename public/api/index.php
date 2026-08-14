@@ -636,7 +636,10 @@ function handleMagic($method, $pdo, $rateLimit, $ip) {
         $token = $magic->create($email, $ttl);
 
         $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
-        $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
+        // Token in the URL fragment (#magic=...) so it never appears in query
+        // strings, server logs, or Referer headers. login.php reads it via JS
+        // and posts it to a redeem endpoint.
+        $loginUrl = $appUrl . '/admin/login.php#magic=' . urlencode($token);
 
         $mailer = new Mailer();
         $mailer->send(
@@ -691,7 +694,9 @@ function handleSignupRequest($method, $pdo, $rateLimit, $ip) {
         $magic = new MagicLink();
         $token = $magic->create($email, $ttl);
         $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
-        $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
+        // Token in the URL fragment (#magic=...) so it never appears in query
+        // strings, server logs, or Referer headers.
+        $loginUrl = $appUrl . '/admin/login.php#magic=' . urlencode($token);
 
         $mailer = new Mailer();
         $mailer->send(
