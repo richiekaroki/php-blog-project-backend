@@ -664,6 +664,7 @@ function render2faChallenge(?string $error = null): void
         </div>
         
          <p class="footer-text">A place for thoughtful stories and ideas.</p>
+         <p class="footer-text" style="margin-top: 0.5rem;">Need an account? <a href="/signup.php" style="color: var(--color-forest-green);">Request access</a></p>
          <button id="theme-toggle" type="button" aria-label="Toggle dark mode" class="theme-toggle" title="Toggle dark mode">
            🌙
          </button>

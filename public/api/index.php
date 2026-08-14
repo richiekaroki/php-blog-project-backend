@@ -30,9 +30,11 @@ $method = $_SERVER['REQUEST_METHOD'];
 //   admin  = full access
 //   editor = create/edit, NO delete
 //   viewer = read-only (no writes)
+// Public actions (magic sign-in request, sign-up request) bypass the gate.
 $writeMethods = ['POST', 'PUT', 'DELETE'];
-$isMagicRequest = ($_GET['action'] ?? '') === 'magic';
-if (in_array($method, $writeMethods) && !$isMagicRequest) {
+$publicActions = ['magic', 'signup-request'];
+$isPublicAction = in_array($_GET['action'] ?? '', $publicActions, true);
+if (in_array($method, $writeMethods) && !$isPublicAction) {
     Auth::startSession();
     if (!isset($_SESSION['admin']) || !Auth::isSessionValid()) {
         sendResponse(401, ['error' => 'Authentication required for write operations']);
@@ -667,10 +669,20 @@ function handleSignupRequest($method, $pdo) {
         sendResponse(400, ['error' => 'A valid email address is required']);
     }
 
-    // If the visitor already has an account, redirect them to the normal magic-link sign-in.
-    $stmt = $pdo->prepare("SELECT id FROM admins WHERE LOWER(email) = ? LIMIT 1");
-    $stmt->execute([$email]);
-    if ($stmt->fetch()) {
+    // If the visitor already has an account, send them a real magic link so
+    // they can sign in right away.
+    if (\App\Models\Invitation::isAdmin($email)) {
+        try {
+            $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
+            $magic = new MagicLink();
+            $token = $magic->create($email, $ttl);
+            $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
+            $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
+            $mailer = new Mailer();
+            $mailer->send($email, 'Your WAM Blog sign in link', emailHtml($loginUrl), "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes.");
+        } catch (\Throwable $e) {
+            error_log('Magic link send failed: ' . $e->getMessage());
+        }
         sendResponse(200, [
             'success' => true,
             'message' => 'An account already exists for this email. We sent a sign in link to your inbox.',
@@ -679,25 +691,13 @@ function handleSignupRequest($method, $pdo) {
         return;
     }
 
-    // Create or re-use a pending invitation.
-    $token = bin2hex(random_bytes(32));
-    $expiresAt = (new \DateTime())->modify('+24 hours')->format('Y-m-d H:i:s');
-
-    try {
-        // Deactivate any previous unused invitations for this email.
-        $stmt = $pdo->prepare("UPDATE invitations SET accepted_at = NOW() WHERE email = ? AND accepted_at IS NULL AND expires_at > NOW()");
-        $stmt->execute([$email]);
-
-        $stmt = $pdo->prepare("INSERT INTO invitations (email, token, role, expires_at) VALUES (?, ?, 'editor', ?) ON CONFLICT (email) DO UPDATE SET token = EXCLUDED.token, expires_at = EXCLUDED.expires_at");
-        $stmt->execute([$email, $token, $expiresAt]);
-
-        ActivityLog::log('signup_requested', 'invitation', null, ['email' => $email]);
-
-        sendResponse(200, ['success' => true, 'message' => 'An access request has been submitted. Check your inbox to activate your account.']);
-    } catch (\Throwable $e) {
-        error_log('Signup request failed: ' . $e->getMessage());
+    // Create or re-use a pending invitation awaiting admin approval.
+    $invite = \App\Models\Invitation::request($email, 'editor');
+    if ($invite === false) {
         sendResponse(500, ['error' => 'Could not process your request. Please try again later.']);
     }
+
+    sendResponse(200, ['success' => true, 'message' => 'Your request has been submitted. An administrator will review it shortly.']);
 }
 
 function emailHtml(string $loginUrl): string {

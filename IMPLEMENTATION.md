@@ -264,7 +264,7 @@ Apply in order:
 
 ## 10. Testing
 
-`tests/BlogTest.php` — **53 tests / 109 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, DB-backed IP rate limiting (block/isolate/forwarded-IP), and the auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI.
+`tests/BlogTest.php` — **58 tests / 118 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, DB-backed IP rate limiting (block/isolate/forwarded-IP), the auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI, and the invitation flow: `invitations` table + partial pending index, lifecycle (pending → accepted), rejection distinctness, and email uniqueness with `ON CONFLICT` upsert.
 
 ```bash
 vendor/bin/phpunit --testdox

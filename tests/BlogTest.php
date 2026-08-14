@@ -743,4 +743,88 @@ class BlogTest extends TestCase
         ");
         $this->assertNotEmpty($stmt->fetch(), 'auth_sessions.revoked_at column should exist');
     }
+
+    // ==========================================
+    // INVITATIONS / SIGN-UP FLOW TESTS
+    // ==========================================
+
+    public function testInvitationsTableExists()
+    {
+        $stmt = $this->pdo->query("SELECT to_regclass('invitations') AS table_name");
+        $row = $stmt->fetch();
+        $this->assertNotNull($row['table_name'], 'invitations table should exist');
+    }
+
+    public function testInvitationsHasPendingIndex()
+    {
+        $stmt = $this->pdo->query("
+            SELECT 1 FROM pg_indexes
+            WHERE tablename = 'invitations' AND indexdef ILIKE '%accepted_at IS NULL%'
+        ");
+        $this->assertNotEmpty($stmt->fetch(), 'invitations should have a partial pending index');
+    }
+
+    public function testInvitationLifecycle()
+    {
+        $email = 'flow-test-' . bin2hex(random_bytes(3)) . '@example.com';
+
+        // Insert a pending invitation
+        $stmt = $this->pdo->prepare("INSERT INTO invitations (email, token, role, expires_at) VALUES (?, ?, 'editor', ?)");
+        $stmt->execute([$email, bin2hex(random_bytes(32)), date('Y-m-d H:i:s', time() + 3600)]);
+        $inviteId = (int)$this->pdo->lastInsertId();
+
+        // It must be pending (not accepted/rejected)
+        $stmt = $this->pdo->prepare("SELECT role FROM invitations WHERE id = ? AND accepted_at IS NULL AND rejected_at IS NULL");
+        $stmt->execute([$inviteId]);
+        $pending = $stmt->fetch();
+        $this->assertNotEmpty($pending, 'new invitation should be pending');
+        $this->assertEquals('editor', $pending['role']);
+
+        // Accept it
+        $stmt = $this->pdo->prepare("UPDATE invitations SET accepted_at = NOW() WHERE id = ?");
+        $stmt->execute([$inviteId]);
+        $stmt = $this->pdo->prepare("SELECT accepted_at, rejected_at FROM invitations WHERE id = ?");
+        $stmt->execute([$inviteId]);
+        $row = $stmt->fetch();
+        $this->assertNotNull($row['accepted_at'], 'accepted_at should be set on accept');
+        $this->assertNull($row['rejected_at']);
+
+        // Cleanup
+        $this->pdo->prepare("DELETE FROM invitations WHERE email = ?")->execute([$email]);
+    }
+
+    public function testInvitationRejectionIsDistinctFromAcceptance()
+    {
+        $email = 'reject-test-' . bin2hex(random_bytes(3)) . '@example.com';
+        $stmt = $this->pdo->prepare("INSERT INTO invitations (email, token, role, expires_at) VALUES (?, ?, 'viewer', ?)");
+        $stmt->execute([$email, bin2hex(random_bytes(32)), date('Y-m-d H:i:s', time() + 3600)]);
+        $inviteId = (int)$this->pdo->lastInsertId();
+
+        $stmt = $this->pdo->prepare("UPDATE invitations SET rejected_at = NOW() WHERE id = ?");
+        $stmt->execute([$inviteId]);
+
+        $stmt = $this->pdo->prepare("SELECT accepted_at, rejected_at FROM invitations WHERE id = ?");
+        $stmt->execute([$inviteId]);
+        $row = $stmt->fetch();
+        $this->assertNotNull($row['rejected_at'], 'rejected_at should be set on reject');
+        $this->assertNull($row['accepted_at'], 'accepted_at must stay NULL on reject');
+
+        $this->pdo->prepare("DELETE FROM invitations WHERE email = ?")->execute([$email]);
+    }
+
+    public function testInvitationEmailIsUnique()
+    {
+        $email = 'unique-test-' . bin2hex(random_bytes(3)) . '@example.com';
+        $this->pdo->prepare("INSERT INTO invitations (email, token, role, expires_at) VALUES (?, ?, 'editor', ?)")
+            ->execute([$email, 'a', date('Y-m-d H:i:s', time() + 3600)]);
+        // Second request for the same email upserts (ON CONFLICT) instead of duplicating.
+        $this->pdo->prepare("INSERT INTO invitations (email, token, role, expires_at) VALUES (?, ?, 'editor', ?) ON CONFLICT (email) DO UPDATE SET token = EXCLUDED.token")
+            ->execute([$email, 'b', date('Y-m-d H:i:s', time() + 3600)]);
+
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM invitations WHERE email = ?");
+        $stmt->execute([$email]);
+        $this->assertEquals(1, (int)$stmt->fetch()['count']);
+
+        $this->pdo->prepare("DELETE FROM invitations WHERE email = ?")->execute([$email]);
+    }
 }

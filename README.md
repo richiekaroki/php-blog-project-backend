@@ -26,6 +26,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 - 🧾 **Server-side session registry** — every login recorded in `auth_sessions`; logout & "sign out other devices" revoke sessions instantly.
 - 🚦 **DB-backed IP rate limiting** — magic-link requests, 2FA attempts, and API requests all capped per-minute, keyed on hashed IP (cookies can't reset it).
 - 👥 **Role-based access control** — `admin` (full), `editor` (create/edit), `viewer` (read-only), enforced server-side on the API **and** PHP admin pages.
+- 📨 **Invite-based sign-ups** — visitors request access via `/signup.php`; admins approve/reject in the Users panel. Approved users become editors and sign in with magic links. No self-service admin accounts.
 - 🐘 **PostgreSQL + PDO** — parameterized queries throughout, search/filter/pagination, image uploads with validation.
 - 🕷️ **SEO-friendly** — crawlers get the fully server-rendered landing page (nginx bot UA detection); humans get the Vue SPA.
 - 🔎 **Activity feed** — `activity.php` surfaces sign-ins, 2FA enable/disable, session revocations, and content edits with human-readable labels.
@@ -42,7 +43,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 | Backend | PHP 8.4, Nginx + PHP-FPM (Docker) |
 | Database | PostgreSQL 17 (Neon, managed) |
 | Email | Brevo SMTP (magic links) |
-| Testing | PHPUnit (53 tests / 109 assertions) |
+| Testing | PHPUnit (58 tests / 118 assertions) |
 | Hosting | Render (docker runtime) |
 
 ---
@@ -67,7 +68,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 │   ├── index.php / post.php
 │   └── uploads/           # blog images
 ├── sql/                   # schema + migrations (Neon)
-├── tests/                 # PHPUnit (51 tests)
+├── tests/                 # PHPUnit (58 tests)
 ├── Dockerfile / nginx.conf / render.yaml / php-fpm.conf
 └── .env.example
 ```
@@ -160,7 +161,7 @@ Verify: `SELECT count(*) FROM auth_sessions;` and `SELECT count(*) FROM login_ra
 vendor/bin/phpunit --testdox
 ```
 
-51 tests / 99 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, and the auth-security suite: single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation.
+58 tests / 118 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, the auth-security suite (single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation), and the sign-up/approval flow (invitations table, lifecycle, rejection, uniqueness).
 
 ---
 
@@ -188,6 +189,7 @@ Pushing to `main` triggers an auto-rebuild on Render. Set in the dashboard (neve
 3. **2FA (optional)** → if `totp_secret` is set, a TOTP challenge page appears *before* any session is created.
 4. **Server-side session** → `Auth::registerSession` rotates the PHP session ID and records `auth_sessions`; `Auth::check` validates every request against it (revoked/expired sessions fail closed).
 5. **Roles** → enforced per-endpoint (API write gate) and per-page (PHP admin).
+6. **Sign-up** → visitors request access at `/signup.php`; a pending `invitations` row is created. Admins approve/reject requests in the **Users** panel (`/admin/users.php`); approval creates an account (default `editor`) and the new user signs in via magic link.
 
 See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the full flow and [DESIGN.md](DESIGN.md) for the architecture.
 

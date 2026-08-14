@@ -131,7 +131,7 @@ Layered defense-in-depth:
 | `roles` / `user_roles` | Legacy role join | Reserved for future RBAC migration |
 | `blogs` | Posts | `title`, `slug`, `content`, `category_id`, `image`, `published`, timestamps |
 | `categories` | Taxonomy | `name`, `slug` |
-| `invitations` | Sign-up requests | `email` UNIQUE, `token`, `role`, `expires_at`, `accepted_at` |
+| `invitations` | Sign-up requests | `email` UNIQUE, `token`, `role`, `expires_at`, `accepted_at`, `rejected_at` |
 | `activity_log` | Audit log | `actor_id`, `event`, `category`, `metadata` |
 
 ### 5.2 Auth/session tables (migration `2026_08_13_magic_link_security`)
