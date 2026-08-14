@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 
+const model = defineModel<string>()
+
 const props = defineProps<{
   class?: string
 }>()
@@ -15,5 +17,5 @@ const classes = computed(() =>
 </script>
 
 <template>
-  <input :class="classes" />
+  <input v-model="model" :class="classes" />
 </template>
