@@ -1,3 +1,13 @@
+# Render free web services sleep after ~15 minutes of inactivity and cold-start
+# (up to 30s) on the next request. To keep this instance warm, point a free
+# uptime monitor at the health endpoint (already wired as healthCheckPath below):
+#
+#   https://php-blog-backend.onrender.com/api/index.php?action=health
+#
+# Recommended: cron-job.org (free, supports arbitrary intervals) or
+# UptimeRobot (free, 5-minute interval). A GET every ~10 minutes is enough to
+# prevent sleep. Note this keeps the app warm but does NOT change Render's
+# monthly instance restart on free plans.
 services:
   - type: web
     name: php-blog-backend

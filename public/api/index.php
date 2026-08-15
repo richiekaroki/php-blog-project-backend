@@ -146,12 +146,12 @@ function handleBlogs($method, $id, $pdo) {
     switch ($method) {
         case 'GET':
             if ($id) {
-                // Get single blog
+                // Get single blog (published only)
                 $stmt = $pdo->prepare("
                     SELECT b.*, c.name AS category_name 
                     FROM blogs b 
                     LEFT JOIN categories c ON b.category_id = c.id 
-                    WHERE b.id = ?
+                    WHERE b.id = ? AND b.status = 'published'
                 ");
                 $stmt->execute([$id]);
                 $blog = $stmt->fetch();
@@ -168,16 +168,17 @@ function handleBlogs($method, $id, $pdo) {
                 $cursor = $_GET['cursor'] ?? null;
                 
                 // Get total count
-                $countStmt = $pdo->query("SELECT COUNT(*) AS total FROM blogs");
+                $countStmt = $pdo->query("SELECT COUNT(*) AS total FROM blogs WHERE status = 'published'");
                 $total = $countStmt->fetch()['total'];
                 
                 // Cursor-based or offset-based pagination
                 if ($cursor) {
                     $stmt = $pdo->prepare("
-                        SELECT b.*, c.name AS category_name 
+                        SELECT b.id, b.title, b.content, b.category_id, b.image, b.created_at, b.views, b.status,
+                               c.name AS category_name 
                         FROM blogs b 
                         LEFT JOIN categories c ON b.category_id = c.id 
-                        WHERE b.id < ?
+                        WHERE b.id < ? AND b.status = 'published'
                         ORDER BY b.id DESC 
                         LIMIT ?
                     ");
@@ -185,15 +186,25 @@ function handleBlogs($method, $id, $pdo) {
                 } else {
                     $offset = ($page - 1) * $limit;
                     $stmt = $pdo->prepare("
-                        SELECT b.*, c.name AS category_name 
+                        SELECT b.id, b.title, b.content, b.category_id, b.image, b.created_at, b.views, b.status,
+                               c.name AS category_name 
                         FROM blogs b 
                         LEFT JOIN categories c ON b.category_id = c.id 
+                        WHERE b.status = 'published'
                         ORDER BY b.id DESC 
                         LIMIT ? OFFSET ?
                     ");
                     $stmt->execute([$limit, $offset]);
                 }
                 $blogs = $stmt->fetchAll();
+
+                // Slim the list payload: send an excerpt + word count instead of the full body.
+                foreach ($blogs as &$blog) {
+                    $blog['excerpt'] = blogExcerpt($blog['content'] ?? '');
+                    $blog['word_count'] = str_word_count($blog['content'] ?? '');
+                    unset($blog['content']);
+                }
+                unset($blog);
                 
                 // Get next cursor for cursor-based pagination
                 $nextCursor = null;
@@ -350,8 +361,8 @@ function handleCategories($method, $id, $pdo) {
                     sendResponse(404, ['error' => 'Category not found']);
                 }
                 
-                // Get blogs in this category
-                $blogStmt = $pdo->prepare("SELECT * FROM blogs WHERE category_id = ? ORDER BY id DESC");
+                // Get blogs in this category (published only)
+                $blogStmt = $pdo->prepare("SELECT * FROM blogs WHERE category_id = ? AND status = 'published' ORDER BY id DESC");
                 $blogStmt->execute([$id]);
                 $category['blogs'] = $blogStmt->fetchAll();
                 
@@ -545,6 +556,14 @@ function requireApiRole(array $roles): void {
     if (!in_array($role, $roles, true)) {
         sendResponse(403, ['error' => 'Insufficient permissions for this action']);
     }
+}
+
+/**
+ * Build a clean, client-safe excerpt (no tags, whitespace collapsed).
+ */
+function blogExcerpt($content, $len = 260) {
+    $text = trim(preg_replace('/\s+/', ' ', strip_tags((string)$content)));
+    return mb_strlen($text) > $len ? mb_substr($text, 0, $len) . '…' : $text;
 }
 
 /**

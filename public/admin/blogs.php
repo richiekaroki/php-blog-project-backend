@@ -1,7 +1,8 @@
-<?php
+﻿<?php
 // admin/blogs.php - Blog management with image upload
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+require_once __DIR__ . '/../inc/post-format.php';
 
 use App\Database\Connection;
 use App\Middleware\Auth;
@@ -25,7 +26,7 @@ if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0755, true);
 }
 
-// Handle DELETE (admin only, POST + CSRF — never via GET)
+// Handle DELETE (admin only, POST + CSRF â€” never via GET)
 if (isset($_POST['delete'])) {
     if (!$canDelete) {
         http_response_code(403);
@@ -60,7 +61,7 @@ if (isset($_POST['delete'])) {
     exit;
 }
 
-// Handle form submissions (create/edit — admin and editor)
+// Handle form submissions (create/edit â€” admin and editor)
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (!$canWrite) {
         http_response_code(403);
@@ -73,9 +74,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         die('Invalid CSRF token');
     }
 
+    // Inline publish/unpublish toggle from the posts table
+    if (isset($_POST['toggle_status']) && isset($_POST['blog_id'])) {
+        $blogId = (int)$_POST['blog_id'];
+        $stmt = $pdo->prepare("SELECT status FROM blogs WHERE id = ?");
+        $stmt->execute([$blogId]);
+        $row = $stmt->fetch();
+        if ($row) {
+            $newStatus = $row['status'] === 'published' ? 'draft' : 'published';
+            $upd = $pdo->prepare("UPDATE blogs SET status = ? WHERE id = ?");
+            $upd->execute([$newStatus, $blogId]);
+        }
+        $qs = [];
+        if (!empty($_GET['q'])) $qs['q'] = $_GET['q'];
+        if (!empty($_GET['page']) && (int)$_GET['page'] > 1) $qs['page'] = (int)$_GET['page'];
+        header("Location: blogs.php" . ($qs ? '?' . http_build_query($qs) : ''));
+        exit;
+    }
+
     $title = trim((string)($_POST['title'] ?? ''));
     $content = trim((string)($_POST['content'] ?? ''));
     $category_id = $_POST['category_id'] ?? null;
+    $status = in_array($_POST['status'] ?? 'published', ['published', 'draft'], true) ? $_POST['status'] : 'published';
 
     // Server-side validation (mirrors DB constraints: title VARCHAR(255), content TEXT)
     if ($title === '' || mb_strlen($title) > 255) {
@@ -86,7 +106,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     }
     $imagePath = null;
 
-    // Handle image upload — HIGH-1: validate actual content, not just MIME
+    // Handle image upload â€” HIGH-1: validate actual content, not just MIME
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         $maxSize = 5 * 1024 * 1024; // 5MB
         
@@ -154,21 +174,50 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     } else {
         // Create new blog
-        $sql = "INSERT INTO blogs (title, content, image, category_id) VALUES (?, ?, ?, ?)";
+        $sql = "INSERT INTO blogs (title, content, image, category_id, status) VALUES (?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$title, $content, $imagePath, $category_id]);
+        $stmt->execute([$title, $content, $imagePath, $category_id, $status]);
     }
     header("Location: blogs.php");
     exit;
 }
 
-// Fetch blogs with categories using PDO
-$stmt = $pdo->query("SELECT b.*, c.name AS category_name FROM blogs b LEFT JOIN categories c ON b.category_id = c.id ORDER BY b.id DESC");
+// Search + pagination for the posts table
+$search = trim((string)($_GET['q'] ?? ''));
+$page = max(1, (int)($_GET['page'] ?? 1));
+$perPage = 10;
+
+$where = '';
+$params = [];
+if ($search !== '') {
+    $where = " WHERE b.title ILIKE ? OR b.content ILIKE ?";
+    $params = ['%' . $search . '%', '%' . $search . '%'];
+}
+
+$countStmt = $pdo->prepare("SELECT COUNT(*) FROM blogs b" . $where);
+$countStmt->execute($params);
+$totalBlogs = (int)$countStmt->fetchColumn();
+$totalPages = max(1, (int)ceil($totalBlogs / $perPage));
+$page = min($page, $totalPages);
+$offset = ($page - 1) * $perPage;
+
+$stmt = $pdo->prepare("SELECT b.*, c.name AS category_name FROM blogs b LEFT JOIN categories c ON b.category_id = c.id" . $where . " ORDER BY b.id DESC LIMIT $perPage OFFSET $offset");
+$stmt->execute($params);
 $blogs = $stmt->fetchAll();
 
 // Fetch categories for form
 $catStmt = $pdo->query("SELECT * FROM categories");
 $categories = $catStmt->fetchAll();
+
+// Quick stats for the welcome band
+$statPosts = (int)$pdo->query("SELECT COUNT(*) FROM blogs WHERE status = 'published'")->fetchColumn();
+$statCats = (int)$pdo->query("SELECT COUNT(*) FROM categories")->fetchColumn();
+$statRecent = (int)$pdo->query("SELECT COUNT(*) FROM activity_log WHERE created_at >= NOW() - INTERVAL '7 days'")->fetchColumn();
+
+$hour = (int)date('G');
+$greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
+$greetingName = Auth::currentUsername() ?? 'author';
+$roleLabel = ucfirst($currentRole);
 ?>
 
 <!DOCTYPE html>
@@ -176,334 +225,13 @@ $categories = $catStmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blog Management - WAM Blog</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #FBF9F1;
-            --fg: #2E2910;
-            --card: #FFFFFF;
-            --primary: #2C5745;
-            --primary-fg: #FFFFFF;
-            --muted: #F5F0DC;
-            --muted-fg: #5C5340;
-            --border: #D4C9A8;
-            --cream: #EBE3A7;
-            --orange: #EB7D00;
-            --green: #2C5745;
-            --olive: #2E2910;
-            --destructive: #C53030;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--fg);
-            line-height: 1.6;
-        }
-
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Lora', Georgia, serif;
-            color: var(--olive);
-        }
-
-        a { color: var(--green); text-decoration: none; transition: color 0.2s; }
-        a:hover { color: var(--orange); }
-
-        /* LAYOUT */
-        .layout {
-            display: flex;
-            min-height: 100vh;
-        }
-
-        /* SIDEBAR */
-        .sidebar {
-            width: 260px;
-            background: var(--card);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-        }
-        .sidebar-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .sidebar-logo {
-            width: 36px;
-            height: 36px;
-            background: var(--green);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-family: 'Lora', serif;
-            font-weight: 700;
-            font-size: 1.1rem;
-        }
-        .sidebar-brand {
-            font-family: 'Lora', serif;
-            font-weight: 600;
-            font-size: 1.1rem;
-            color: var(--olive);
-        }
-        .sidebar-sub {
-            font-size: 0.75rem;
-            color: var(--muted-fg);
-            margin-top: 0.15rem;
-        }
-        .sidebar-nav {
-            flex: 1;
-            padding: 1rem;
-        }
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--muted-fg);
-            transition: all 0.2s;
-            margin-bottom: 0.25rem;
-        }
-        .nav-item:hover { background: var(--muted); color: var(--fg); }
-        .nav-item.active {
-            background: rgba(44,87,69,0.1);
-            color: var(--green);
-        }
-        .nav-item svg { width: 20px; height: 20px; }
-
-        /* MAIN */
-        .main {
-            flex: 1;
-            margin-left: 260px;
-        }
-        .header {
-            height: 64px;
-            background: var(--card);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 1.5rem;
-            position: sticky;
-            top: 0;
-            z-index: 40;
-        }
-        .header-title {
-            font-family: 'Lora', serif;
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-        .header-actions { display: flex; gap: 0.5rem; }
-        .content { padding: 2rem; }
-
-        /* BUTTONS */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.6rem 1.25rem;
-            border-radius: 0.5rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: none;
-        }
-        .btn-primary { background: var(--green); color: white; }
-        .btn-primary:hover { background: #234a3a; }
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--muted-fg);
-        }
-        .btn-outline:hover { border-color: var(--green); color: var(--green); }
-        .btn-danger { background: var(--destructive); color: white; }
-        .btn-danger:hover { background: #a02020; }
-        .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
-        .btn-ghost {
-            background: transparent;
-            color: var(--muted-fg);
-            padding: 0.5rem;
-        }
-        .btn-ghost:hover { color: var(--fg); background: var(--muted); }
-
-        /* CARDS */
-        .card {
-            background: var(--card);
-            border-radius: 1rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-            margin-bottom: 1.5rem;
-        }
-        .card-header {
-            padding: 1.25rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .card-header h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-        .card-body { padding: 1.5rem; }
-
-        /* FORMS */
-        .form-group { margin-bottom: 1.25rem; }
-        .form-label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: var(--olive);
-            margin-bottom: 0.5rem;
-        }
-        .form-input, .form-textarea, .form-select {
-            width: 100%;
-            padding: 0.65rem 1rem;
-            font-size: 0.95rem;
-            font-family: inherit;
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            background: var(--bg);
-            color: var(--fg);
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .form-input:focus, .form-textarea:focus, .form-select:focus {
-            outline: none;
-            border-color: var(--green);
-            box-shadow: 0 0 0 3px rgba(44,87,69,0.1);
-        }
-        .form-textarea { resize: vertical; min-height: 120px; }
-        .form-help {
-            font-size: 0.8rem;
-            color: var(--muted-fg);
-            margin-top: 0.35rem;
-        }
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 1.5rem;
-        }
-
-        /* TABLE */
-        .table-wrap { overflow-x: auto; }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 0.85rem 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-        th {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: var(--muted-fg);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        tr:hover td { background: rgba(245, 240, 220, 0.5); }
-        .blog-thumb {
-            width: 64px;
-            height: 48px;
-            border-radius: 0.375rem;
-            object-fit: cover;
-            background: var(--muted);
-        }
-        .blog-thumb-placeholder {
-            width: 64px;
-            height: 48px;
-            border-radius: 0.375rem;
-            background: linear-gradient(135deg, var(--cream), var(--muted));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .blog-thumb-placeholder svg { width: 20px; height: 20px; color: rgba(44,87,69,0.3); }
-        .blog-title { font-weight: 600; color: var(--olive); }
-        .blog-excerpt {
-            font-size: 0.85rem;
-            color: var(--muted-fg);
-            margin-top: 0.2rem;
-        }
-        .tag {
-            display: inline-block;
-            padding: 0.2rem 0.6rem;
-            background: rgba(44,87,69,0.1);
-            color: var(--green);
-            border-radius: 1rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-
-        /* PREVIEW */
-        .upload-preview {
-            max-width: 200px;
-            max-height: 150px;
-            border-radius: 0.5rem;
-            margin-top: 0.75rem;
-            display: none;
-        }
-
-        /* MODAL */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 100;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-overlay.active { display: flex; }
-        .modal {
-            background: var(--card);
-            border-radius: 1rem;
-            padding: 2rem;
-            max-width: 420px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-        }
-        .modal h3 { margin-bottom: 0.75rem; }
-        .modal p { color: var(--muted-fg); margin-bottom: 0.5rem; }
-        .modal-actions {
-            display: flex;
-            gap: 0.75rem;
-            justify-content: flex-end;
-            margin-top: 1.5rem;
-        }
-
-        /* EMPTY STATE */
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: var(--muted-fg);
-        }
-        .empty-state svg { width: 48px; height: 48px; color: rgba(44,87,69,0.2); margin: 0 auto 1rem; }
-
-        /* RESPONSIVE */
-        @media (max-width: 900px) {
-            .sidebar { display: none; }
-            .main { margin-left: 0; }
-            .form-row { grid-template-columns: 1fr; }
-        }
-    </style>
+    <title>Blog Management · WAM Blog</title>
+    <link rel="stylesheet" href="../assets/admin.css">
+    <script>
+        (function() {
+            if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+        })();
+    </script>
 </head>
 <body>
     <div class="layout">
@@ -517,6 +245,7 @@ $categories = $catStmt->fetchAll();
                 </div>
             </div>
             <nav class="sidebar-nav">
+                <p class="nav-section-label">Manage</p>
                 <a href="blogs.php" class="nav-item active">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
                     Blogs
@@ -535,13 +264,14 @@ $categories = $catStmt->fetchAll();
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
                     Activity
                 </a>
+                <p class="nav-section-label" style="margin-top: 1rem;">Site</p>
                 <a href="/" class="nav-item" target="_blank">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
                     View Site
                 </a>
             </nav>
-            <div style="padding: 1rem; border-top: 1px solid var(--border);">
-                <a href="login.php?action=logout" class="nav-item" style="color: var(--destructive);">
+            <div class="sidebar-footer">
+                <a href="login.php?action=logout" class="nav-item danger">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
                     Logout
                 </a>
@@ -553,11 +283,36 @@ $categories = $catStmt->fetchAll();
             <header class="header">
                 <h1 class="header-title">Blog Management</h1>
                 <div class="header-actions">
-                    <span style="font-size: 0.85rem; color: var(--muted-fg);"><?php echo count($blogs); ?> posts</span>
+                    <span class="header-meta"><?php echo count($blogs); ?> posts</span>
+                    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">&#9681;</button>
                 </div>
             </header>
 
             <div class="content">
+                <!-- Welcome band -->
+                <div class="welcome-band">
+                    <div>
+                        <h2 class="welcome-title"><?php echo htmlspecialchars($greeting); ?>, <?php echo htmlspecialchars($greetingName); ?></h2>
+                        <p class="welcome-sub">This is your writing desk. Everything here is kept the old way — one careful edit or commit at a time.</p>
+                    </div>
+                    <span class="badge <?php echo htmlspecialchars($currentRole); ?>"><?php echo htmlspecialchars($roleLabel); ?></span>
+                </div>
+
+                <div class="stat-row">
+                    <div class="stat-card">
+                        <span class="stat-value"><?php echo $statPosts; ?></span>
+                        <span class="stat-label">Published posts</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value"><?php echo $statCats; ?></span>
+                        <span class="stat-label">Categories</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value"><?php echo $statRecent; ?></span>
+                        <span class="stat-label">Events this week</span>
+                    </div>
+                </div>
+
                 <!-- Add Blog Form (admin + editor only) -->
                 <?php if ($canWrite): ?>
                 <div class="card">
@@ -600,6 +355,14 @@ $categories = $catStmt->fetchAll();
                                         <img id="imagePreview" class="upload-preview" alt="Preview">
                                     </div>
                                     
+                                    <div class="form-group">
+                                        <label class="form-label">Status</label>
+                                        <select name="status" class="form-select">
+                                            <option value="published">Published</option>
+                                            <option value="draft">Draft</option>
+                                        </select>
+                                    </div>
+                                    
                                     <button type="submit" class="btn btn-primary" style="width: 100%;">Publish Post</button>
                                 </div>
                             </div>
@@ -612,6 +375,13 @@ $categories = $catStmt->fetchAll();
                 <div class="card">
                     <div class="card-header">
                         <h2>All Posts</h2>
+                        <form method="GET" action="blogs.php" class="table-search" role="search">
+                            <input type="search" name="q" value="<?php echo htmlspecialchars($search); ?>" placeholder="Search posts…" class="form-input" aria-label="Search posts">
+                            <button type="submit" class="btn btn-outline btn-sm">Search</button>
+                            <?php if ($search !== ''): ?>
+                                <a href="blogs.php" class="btn btn-outline btn-sm">Clear</a>
+                            <?php endif; ?>
+                        </form>
                     </div>
                     <?php if (empty($blogs)): ?>
                         <div class="empty-state">
@@ -626,6 +396,7 @@ $categories = $catStmt->fetchAll();
                                         <th style="width: 80px;">Image</th>
                                         <th>Title</th>
                                         <th>Category</th>
+                                        <th>Status</th>
                                         <th style="width: 120px;">Actions</th>
                                     </tr>
                                 </thead>
@@ -643,9 +414,22 @@ $categories = $catStmt->fetchAll();
                                         </td>
                                         <td>
                                             <div class="blog-title"><?php echo htmlspecialchars($blog['title']); ?></div>
-                                            <div class="blog-excerpt"><?php echo htmlspecialchars(mb_strimwidth($blog['content'], 0, 60, '...')); ?></div>
+                                            <div class="blog-excerpt"><?php echo htmlspecialchars(mb_strimwidth(stripMarkdown($blog['content']), 0, 60, '...')); ?></div>
                                         </td>
                                         <td><span class="tag"><?php echo htmlspecialchars($blog['category_name'] ?? 'Uncategorized'); ?></span></td>
+                                        <td>
+                                            <span class="badge <?php echo $blog['status'] === 'draft' ? 'draft' : 'admin'; ?>"><?php echo htmlspecialchars($blog['status'] ?? 'published'); ?></span>
+                                            <?php if ($canWrite): ?>
+                                            <form method="POST" action="blogs.php" style="display: inline-block; margin-left: 0.5rem;">
+                                                <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                                <input type="hidden" name="toggle_status" value="1">
+                                                <input type="hidden" name="blog_id" value="<?php echo $blog['id']; ?>">
+                                                <button type="submit" class="btn btn-outline btn-sm" title="<?php echo $blog['status'] === 'draft' ? 'Publish this story' : 'Unpublish (save as draft)'; ?>">
+                                                    <?php echo $blog['status'] === 'draft' ? 'Publish' : 'Unpublish'; ?>
+                                                </button>
+                                            </form>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <div style="display: flex; gap: 0.5rem;">
                                                 <?php if ($canWrite): ?>
@@ -661,6 +445,17 @@ $categories = $catStmt->fetchAll();
                                 </tbody>
                             </table>
                         </div>
+                        <?php if ($totalPages > 1): ?>
+                            <div class="pagination">
+                                <?php if ($page > 1): ?>
+                                    <a class="page-link" href="blogs.php?q=<?php echo urlencode($search); ?>&page=<?php echo $page - 1; ?>">Prev</a>
+                                <?php endif; ?>
+                                <span class="page-info">Page <?php echo $page; ?> of <?php echo $totalPages; ?> · <?php echo $totalBlogs; ?> posts</span>
+                                <?php if ($page < $totalPages): ?>
+                                    <a class="page-link" href="blogs.php?q=<?php echo urlencode($search); ?>&page=<?php echo $page + 1; ?>">Next</a>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
@@ -710,6 +505,13 @@ $categories = $catStmt->fetchAll();
         document.getElementById('deleteModal').addEventListener('click', function(e) {
             if (e.target === this) closeModal();
         });
+    </script>
+    <script>
+        function toggleTheme() {
+            const root = document.documentElement;
+            root.classList.toggle('dark');
+            localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light');
+        }
     </script>
 </body>
 </html>

@@ -1,7 +1,8 @@
-<?php
+﻿<?php
 // post.php - Display single blog post
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
+require_once __DIR__ . '/inc/post-format.php';
 
 use App\Database\Connection;
 use App\Middleware\SecurityHeaders;
@@ -17,12 +18,12 @@ if (!$id) {
     exit;
 }
 
-// Fetch post with category
+// Fetch post with category (published only — drafts are admin work)
 $stmt = $pdo->prepare("
     SELECT blogs.*, categories.name AS category_name 
     FROM blogs 
     JOIN categories ON blogs.category_id = categories.id 
-    WHERE blogs.id = ?
+    WHERE blogs.id = ? AND blogs.status = 'published'
 ");
 $stmt->execute([$id]);
 $post = $stmt->fetch();
@@ -31,6 +32,9 @@ if (!$post) {
     header("Location: index.php");
     exit;
 }
+
+// Count this read (fire-and-forget; drafts are never reached here)
+$pdo->prepare("UPDATE blogs SET views = views + 1 WHERE id = ?")->execute([$id]);
 
 // Fetch related posts (same category, excluding current)
 $relatedStmt = $pdo->prepare("
@@ -43,6 +47,13 @@ $relatedStmt = $pdo->prepare("
 ");
 $relatedStmt->execute([$post['category_id'], $id]);
 $relatedPosts = $relatedStmt->fetchAll();
+
+// Canonical URL + social/SEO meta for this post
+$postUrl = (($_SERVER['HTTPS'] ?? 'off') !== 'off' ? 'https' : 'http') . '://'
+    . ($_SERVER['HTTP_HOST'] ?? '') . '/post.php?id=' . $id;
+$postDesc = trim(preg_replace('/\s+/', ' ', stripMarkdown($post['content'])));
+$postDesc = mb_strimwidth($postDesc, 0, 155, '…');
+$postDate = $post['created_at'] ?? null;
 ?>
 
 <!DOCTYPE html>
@@ -50,252 +61,32 @@ $relatedPosts = $relatedStmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($post['title']); ?> - WAM Blog</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #FBF9F1;
-            --fg: #2E2910;
-            --card: #FFFFFF;
-            --primary: #2C5745;
-            --primary-fg: #FFFFFF;
-            --muted: #F5F0DC;
-            --muted-fg: #5C5340;
-            --border: #D4C9A8;
-            --cream: #EBE3A7;
-            --orange: #EB7D00;
-            --green: #2C5745;
-            --olive: #2E2910;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--fg);
-            line-height: 1.6;
-        }
-
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Lora', Georgia, serif;
-            color: var(--olive);
-        }
-
-        a { color: var(--green); text-decoration: none; transition: color 0.2s; }
-        a:hover { color: var(--orange); }
-
-        /* NAV */
-        .nav {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            background: rgba(251, 249, 241, 0.9);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border);
-        }
-        .nav-inner {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 1.5rem;
-            height: 64px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .nav-logo {
-            width: 36px;
-            height: 36px;
-            background: var(--green);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-family: 'Lora', serif;
-            font-weight: 700;
-            font-size: 1.1rem;
-        }
-        .nav-title {
-            font-family: 'Lora', serif;
-            font-weight: 600;
-            font-size: 1.2rem;
-            color: var(--olive);
-        }
-        .nav-links { display: flex; gap: 1rem; align-items: center; }
-        .nav-link {
-            padding: 0.5rem 1rem;
-            font-size: 0.9rem;
-            color: var(--muted-fg);
-            transition: color 0.2s;
-        }
-        .nav-link:hover { color: var(--green); }
-
-        /* POST HERO */
-        .post-hero {
-            padding: 4rem 1.5rem 3rem;
-            background: linear-gradient(180deg, rgba(235, 227, 167, 0.4) 0%, var(--bg) 100%);
-        }
-        .post-hero-inner {
-            max-width: 750px;
-            margin: 0 auto;
-        }
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: var(--muted-fg);
-            font-size: 0.9rem;
-            margin-bottom: 1.5rem;
-        }
-        .back-link:hover { color: var(--green); }
-        .post-tag {
-            display: inline-block;
-            padding: 0.3rem 0.85rem;
-            background: rgba(44,87,69,0.1);
-            color: var(--green);
-            border-radius: 2rem;
-            font-size: 0.8rem;
-            font-weight: 500;
-            margin-bottom: 1rem;
-        }
-        .post-hero h1 {
-            font-size: clamp(2rem, 4vw, 2.75rem);
-            font-weight: 700;
-            line-height: 1.25;
-            margin-bottom: 1rem;
-        }
-
-        /* POST CONTENT */
-        .post-content {
-            max-width: 750px;
-            margin: 0 auto;
-            padding: 0 1.5rem 4rem;
-        }
-        .post-image {
-            width: 100%;
-            border-radius: 1rem;
-            margin-bottom: 2.5rem;
-            max-height: 500px;
-            object-fit: cover;
-        }
-        .post-body {
-            font-size: 1.15rem;
-            line-height: 1.85;
-            color: var(--fg);
-        }
-        .post-body p { margin-bottom: 1.5rem; }
-
-        /* SIDEBAR */
-        .post-layout {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 1.5rem 4rem;
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 3rem;
-        }
-        .sidebar-card {
-            background: var(--card);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .sidebar-card h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid var(--border);
-        }
-        .post-info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            font-size: 0.9rem;
-        }
-        .post-info-label { color: var(--muted-fg); }
-        .post-info-value { font-weight: 500; color: var(--olive); }
-
-        /* RELATED */
-        .related-item {
-            display: flex;
-            gap: 0.75rem;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid var(--border);
-        }
-        .related-item:last-child { border-bottom: none; }
-        .related-img {
-            width: 56px;
-            height: 56px;
-            border-radius: 0.5rem;
-            object-fit: cover;
-            flex-shrink: 0;
-            background: var(--muted);
-        }
-        .related-img-placeholder {
-            width: 56px;
-            height: 56px;
-            border-radius: 0.5rem;
-            background: linear-gradient(135deg, var(--cream), var(--muted));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .related-img-placeholder svg { width: 20px; height: 20px; color: rgba(44,87,69,0.3); }
-        .related-title {
-            font-family: 'Lora', serif;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--olive);
-            margin-bottom: 0.25rem;
-            transition: color 0.2s;
-        }
-        .related-title:hover { color: var(--green); }
-        .related-category {
-            font-size: 0.8rem;
-            color: var(--muted-fg);
-        }
-
-        /* FOOTER */
-        .footer {
-            border-top: 1px solid var(--border);
-            padding: 3rem 1.5rem;
-            background: rgba(235, 227, 167, 0.15);
-        }
-        .footer-inner {
-            max-width: 1100px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-        }
-        .footer-brand { display: flex; align-items: center; gap: 0.75rem; }
-        .footer-text { color: var(--muted-fg); font-size: 0.9rem; }
-        .footer-links { display: flex; gap: 1.5rem; }
-        .footer-links a { color: var(--muted-fg); font-size: 0.9rem; }
-        .footer-links a:hover { color: var(--green); }
-
-        /* RESPONSIVE */
-        @media (max-width: 900px) {
-            .post-layout {
-                grid-template-columns: 1fr;
-            }
-            .sidebar { order: -1; }
-        }
-    </style>
+    <title><?php echo htmlspecialchars($post['title']); ?> · WAM Blog</title>
+    <meta name="description" content="<?php echo htmlspecialchars($postDesc, ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="canonical" href="<?php echo htmlspecialchars($postUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <link rel="alternate" type="application/rss+xml" title="WAM Blog RSS" href="rss.php">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="WAM Blog">
+    <meta property="og:title" content="<?php echo htmlspecialchars($post['title'], ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:description" content="<?php echo htmlspecialchars($postDesc, ENT_QUOTES, 'UTF-8'); ?>">
+    <meta property="og:url" content="<?php echo htmlspecialchars($postUrl, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php if (!empty($post['image'])): ?>
+    <meta property="og:image" content="<?php echo htmlspecialchars($post['image'], ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
+    <?php if ($postDate): ?>
+    <meta property="article:published_time" content="<?php echo htmlspecialchars($postDate, ENT_QUOTES, 'UTF-8'); ?>">
+    <?php endif; ?>
+    <link rel="stylesheet" href="assets/site.css">
+    <script>
+        (function() {
+            if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+        })();
+    </script>
 </head>
 <body>
+    <!-- Reading progress -->
+    <div class="progress-bar" aria-hidden="true"><span id="progress-bar"></span></div>
+
     <!-- Nav -->
     <nav class="nav">
         <div class="nav-inner">
@@ -305,7 +96,8 @@ $relatedPosts = $relatedStmt->fetchAll();
             </a>
             <div class="nav-links">
                 <a href="/" class="nav-link">Home</a>
-                <a href="/admin/login.php" class="nav-link">Admin</a>
+                <button class="btn-ghost" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme" style="padding: 0.4rem 0.6rem;">&#9681;</button>
+                <a href="/admin/login.php" class="btn-outline">Admin</a>
             </div>
         </div>
     </nav>
@@ -320,7 +112,16 @@ $relatedPosts = $relatedStmt->fetchAll();
             <?php if (!empty($post['category_name'])): ?>
                 <span class="post-tag"><?php echo htmlspecialchars($post['category_name']); ?></span>
             <?php endif; ?>
-            <h1><?php echo htmlspecialchars($post['title']); ?></h1>
+            <h1 class="post-title"><?php echo htmlspecialchars($post['title']); ?></h1>
+            <?php if (!empty($post['created_at'])): ?>
+                <div class="post-meta">
+                    <span><?php echo date('F j, Y', strtotime($post['created_at'])); ?></span>
+                    <span class="dot"></span>
+                    <span><?php echo max(1, ceil(str_word_count($post['content']) / 200)); ?> min read</span>
+                    <span class="dot"></span>
+                    <span><?php echo number_format((int)$post['views']); ?> reads</span>
+                </div>
+            <?php endif; ?>
         </div>
     </header>
 
@@ -334,8 +135,14 @@ $relatedPosts = $relatedStmt->fetchAll();
             <?php endif; ?>
             
             <div class="post-body">
-                <?php echo nl2br(htmlspecialchars($post['content'])); ?>
+                <?php echo renderPostContent($post['content']); ?>
             </div>
+
+            <footer class="post-signoff">
+                <span class="fleuron" aria-hidden="true"><span class="glyph">&#10086;</span></span>
+                <p class="post-signoff-text">Written by hand for the readers of WAM Blog. If it moved you, pass it on.</p>
+                <a href="index.php" class="btn-outline">Back to the journal</a>
+            </footer>
         </article>
 
         <aside class="sidebar">
@@ -364,7 +171,7 @@ $relatedPosts = $relatedStmt->fetchAll();
                                      alt="<?php echo htmlspecialchars($related['title']); ?>">
                             <?php else: ?>
                                 <div class="related-img-placeholder">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></svg>
+                                    <span class="placeholder-initial"><?php echo htmlspecialchars(mb_substr($related['title'], 0, 1)); ?></span>
                                 </div>
                             <?php endif; ?>
                             <div>
@@ -394,5 +201,26 @@ $relatedPosts = $relatedStmt->fetchAll();
             </div>
         </div>
     </footer>
+    <script>
+        function toggleTheme() {
+            const root = document.documentElement;
+            root.classList.toggle('dark');
+            localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light');
+        }
+    </script>
+    <script>
+        (function() {
+            const bar = document.getElementById('progress-bar');
+            if (!bar) return;
+            function update() {
+                const doc = document.documentElement;
+                const max = doc.scrollHeight - doc.clientHeight;
+                bar.style.width = (max > 0 ? (doc.scrollTop / max) * 100 : 0) + '%';
+            }
+            window.addEventListener('scroll', update, { passive: true });
+            window.addEventListener('resize', update);
+            update();
+        })();
+    </script>
 </body>
 </html>

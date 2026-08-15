@@ -4,9 +4,9 @@ const isDark = ref(false)
 
 export function useDarkMode() {
   onMounted(() => {
-    const saved = localStorage.getItem('darkMode')
-    if (saved !== null) {
-      isDark.value = saved === 'true'
+    const saved = localStorage.getItem('theme')
+    if (saved === 'dark' || saved === 'light') {
+      isDark.value = saved === 'dark'
     } else {
       isDark.value = window.matchMedia('(prefers-color-scheme: dark)').matches
     }
@@ -14,7 +14,7 @@ export function useDarkMode() {
   })
 
   watch(isDark, () => {
-    localStorage.setItem('darkMode', String(isDark.value))
+    localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
     updateClass()
   })
 

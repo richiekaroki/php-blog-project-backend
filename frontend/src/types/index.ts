@@ -8,12 +8,15 @@ export interface User {
 export interface Blog {
   id: number
   title: string
-  content: string
+  content?: string
+  excerpt?: string
+  word_count?: number
   image: string | null
   category_id: number | null
   category_name?: string
   created_at?: string
   updated_at?: string
+  views?: number
 }
 
 export interface Category {

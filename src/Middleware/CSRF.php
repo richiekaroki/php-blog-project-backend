@@ -6,6 +6,14 @@ class CSRF
 {
     public static function init(): void
     {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            // Session already started (e.g. by Auth::check) — only ensure a token.
+            if (empty($_SESSION['csrf_token'])) {
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            }
+            return;
+        }
+
         ini_set('session.cookie_httponly', 1);
         ini_set('session.cookie_samesite', 'Lax');
         ini_set('session.use_strict_mode', 1);

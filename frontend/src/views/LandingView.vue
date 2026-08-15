@@ -4,11 +4,8 @@ import { api } from '@/api/client'
 import { useDarkMode } from '@/composables/useDarkMode'
 import type { Blog, Category } from '@/types'
 import Button from '@/components/ui/Button.vue'
-import Card from '@/components/ui/Card.vue'
-import CardContent from '@/components/ui/CardContent.vue'
 import GetStartedModal from '@/features/landing/GetStartedModal.vue'
-import { RouterLink } from 'vue-router'
-import { ArrowRight, BookOpen, PenLine, Sparkles, Sun, Moon, Heart, EyeOff, Palette } from 'lucide-vue-next'
+import { ArrowRight, BookOpen, Sun, Moon, Feather, CalendarDays, Clock } from 'lucide-vue-next'
 
 const blogs = ref<Blog[]>([])
 const categories = ref<Category[]>([])
@@ -16,7 +13,32 @@ const loading = ref(true)
 const showGetStarted = ref(false)
 const { isDark, toggle } = useDarkMode()
 
-const liveBlogBase = import.meta.env.DEV ? 'https://php-blog-backend.onrender.com' : ''
+const liveBlogBase = import.meta.env.VITE_BLOG_BASE || (import.meta.env.DEV ? 'http://php-blog-backend-project.test' : '')
+
+function formatDate(iso?: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+function readingTime(blog: Blog): string {
+  const words = blog.word_count ?? (blog.content ? blog.content.trim().split(/\s+/).filter(Boolean).length : 0)
+  return `${Math.max(1, Math.round(words / 200))} min read`
+}
+
+function excerpt(content?: string, len = 160): string {
+  const text = (content ?? '').replace(/\s+/g, ' ').trim()
+  return text.length > len ? text.slice(0, len).trimEnd() + '…' : text
+}
+
+function scrollToTop() {
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
+}
+
+const featured = () => blogs.value[0]
+const rest = () => blogs.value.slice(1)
 
 onMounted(async () => {
   try {
@@ -37,200 +59,336 @@ onMounted(async () => {
 <template>
   <div class="min-h-screen bg-background">
     <!-- Navbar -->
-    <nav class="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-      <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 bg-primary rounded-full flex items-center justify-center">
-            <span class="text-primary-foreground font-display font-bold text-lg">W</span>
-          </div>
-          <span class="font-display font-semibold text-xl text-foreground">WAM Blog</span>
-        </div>
-        <div class="flex items-center gap-3">
+    <nav class="border-b border-border/60 bg-background/85 backdrop-blur-md sticky top-0 z-50">
+      <div class="max-w-6xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between">
+        <a href="/" class="flex items-baseline gap-2">
+          <span class="font-display font-semibold text-2xl tracking-tight text-dark-olive">WAM</span>
+          <span class="eyebrow text-forest-green hidden sm:inline">Blog</span>
+        </a>
+        <div class="flex items-center gap-2 sm:gap-3">
           <button
             @click="toggle"
-            class="p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+            class="p-2 text-muted-foreground hover:text-forest-green hover:bg-muted/70 rounded-md transition-colors"
             :title="isDark ? 'Light mode' : 'Dark mode'"
             aria-label="Toggle theme"
           >
-            <Sun v-if="isDark" class="h-5 w-5" />
-            <Moon v-else class="h-5 w-5" />
+            <Sun v-if="isDark" class="h-4 w-4" />
+            <Moon v-else class="h-4 w-4" />
           </button>
-          <RouterLink to="/login">
-            <Button variant="ghost" class="text-muted-foreground hover:text-foreground">Enter the blog</Button>
-          </RouterLink>
-          <Button
+          <button
             @click="showGetStarted = true"
-            class="bg-forest-green hover:bg-forest-green/90 text-white"
+            class="hidden sm:inline-flex px-3 py-2 text-sm font-medium text-muted-foreground hover:text-forest-green transition-colors cursor-pointer"
           >
-            Get Started
-          </Button>
-          <a :href="liveBlogBase" target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" class="border-forest-green/30 text-forest-green hover:bg-forest-green hover:text-white">Read Blog</Button>
+            Join the journal
+          </button>
+          <a href="#latest">
+            <Button class="h-9 rounded-md px-4 bg-forest-green hover:bg-forest-green/90 text-primary-foreground">
+              Start reading
+              <ArrowRight class="ml-1.5 h-4 w-4" />
+            </Button>
           </a>
         </div>
       </div>
     </nav>
 
     <!-- Hero -->
-    <section class="pt-20 pb-16 px-6 bg-gradient-to-b from-warm-cream/60 via-background to-background">
+    <section class="paper-texture relative pt-16 sm:pt-20 pb-14 sm:pb-16 px-5 sm:px-6 overflow-hidden">
       <div class="max-w-4xl mx-auto text-center">
-        <div class="inline-flex items-center gap-2 px-4 py-2 bg-forest-green/10 rounded-full text-forest-green text-sm font-medium mb-8">
-          <Sparkles class="h-4 w-4" />
-          Welcome to thoughtful reading
-        </div>
-        <h1 class="font-display text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-6 text-dark-olive leading-[1.15]">
+        <p class="eyebrow mb-7 flex items-center justify-center gap-2">
+          <Feather class="h-3.5 w-3.5 text-warm-orange" />
           Stories worth your time
+        </p>
+        <h1 class="font-display text-[2.6rem] leading-[1.08] sm:text-6xl font-semibold tracking-tight text-dark-olive mb-6">
+          A quiet place for
+          <span class="relative inline-block">
+            <em class="italic text-forest-green">stories</em>
+            <svg
+              class="absolute -left-1 -bottom-2 w-[calc(100%+0.5rem)] h-3 text-warm-orange"
+              viewBox="0 0 120 12"
+              fill="none"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M3 9c22-7 46-8 60-5 14 3 32 3 54-2"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
+            </svg>
+          </span>
+          worth your time.
         </h1>
-        <p class="text-lg sm:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-          A space for carefully crafted articles, ideas, and perspectives.
-          No noise, no distractions — just meaningful content that inspires curiosity.
+        <p class="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+          Carefully written articles on the craft of writing, building, and the ideas we keep coming back to.
+          No noise, no clickbait — just reading worth slowing down for.
         </p>
         <div class="flex items-center justify-center gap-4 flex-wrap">
-          <a href="#featured">
-            <Button size="lg" class="bg-forest-green hover:bg-forest-green/90 text-white px-8">
-              Start Reading
+          <a href="#latest">
+            <Button size="lg" class="bg-forest-green hover:bg-forest-green/90 text-primary-foreground px-8 rounded-lg">
+              Start reading
               <ArrowRight class="ml-2 h-4 w-4" />
             </Button>
           </a>
-          <Button size="lg" variant="outline" @click="showGetStarted = true" class="border-forest-green/30 text-forest-green hover:bg-forest-green hover:text-white">
-            <PenLine class="mr-2 h-4 w-4" />
-            Get Started
+          <Button
+            size="lg"
+            variant="ghost"
+            class="text-forest-green hover:text-forest-green/80 px-2 hover:bg-transparent"
+            @click="showGetStarted = true"
+          >
+            Sign in to write
+          </Button>
+        </div>
+        <div class="mt-12 sm:mt-14 flex justify-center">
+          <span class="fleuron" aria-hidden="true"><span class="glyph">&#10086;</span></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- The Latest -->
+    <section id="latest" class="py-16 sm:py-20 px-5 sm:px-6">
+      <div class="max-w-6xl mx-auto">
+        <div class="flex items-end justify-between gap-4 mb-5">
+          <div>
+            <h2 class="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-dark-olive">The Latest</h2>
+          </div>
+          <a
+            :href="`${liveBlogBase}/index.php`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group inline-flex items-center gap-1.5 text-sm font-medium text-forest-green hover:text-forest-green/80 pb-1"
+          >
+            All stories
+            <ArrowRight class="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          </a>
+        </div>
+        <div class="border-b border-border/70 mb-10"></div>
+
+        <!-- Loading -->
+        <div v-if="loading" class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div v-for="i in 2" :key="i" class="animate-pulse">
+            <div class="bg-muted rounded-xl aspect-[16/9] mb-4"></div>
+            <div class="bg-muted rounded h-3 w-1/3 mb-3"></div>
+            <div class="bg-muted rounded h-5 w-3/4 mb-2"></div>
+            <div class="bg-muted rounded h-4 w-1/2"></div>
+          </div>
+        </div>
+
+        <!-- Empty -->
+        <div v-else-if="!blogs.length" class="text-center py-16 px-6 bg-card border border-border/60 rounded-xl">
+          <span class="fleuron mb-6" aria-hidden="true"><span class="glyph">&#10086;</span></span>
+          <h3 class="font-display text-xl font-semibold text-dark-olive mb-2">The journal is still being written</h3>
+          <p class="text-muted-foreground max-w-md mx-auto mb-6">Stories are taking shape behind the scenes. Come back soon — or sign in and start writing your own.</p>
+          <a
+            :href="`${liveBlogBase}/signup.php`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-2 text-sm font-medium text-forest-green hover:text-forest-green/80"
+          >
+            Join the journal
+            <ArrowRight class="h-4 w-4" />
+          </a>
+        </div>
+
+        <template v-else>
+          <!-- Featured story -->
+          <a
+            v-if="featured()"
+            :href="`${liveBlogBase}/post.php?id=${featured()!.id}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-10 bg-card border border-border/60 rounded-xl overflow-hidden hover:shadow-[0_18px_40px_-20px_rgba(38,33,25,0.35)] transition-shadow mb-8"
+          >
+            <div class="aspect-[16/10] lg:aspect-auto lg:h-full overflow-hidden bg-muted">
+              <img
+                v-if="featured()!.image"
+                :src="featured()!.image"
+                :alt="featured()!.title"
+                class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
+              >
+              <div v-else class="w-full h-full flex items-center justify-center bg-secondary/60">
+                <span class="font-display italic text-[4.5rem] leading-none text-forest-green/40 select-none">{{ featured()!.title.charAt(0) }}</span>
+              </div>
+            </div>
+            <div class="p-7 sm:p-9 flex flex-col justify-center">
+              <p class="eyebrow mb-3 flex items-center gap-3">
+                <span class="text-warm-orange">Featured</span>
+                <span class="text-border/70" aria-hidden="true">·</span>
+                <span v-if="featured()!.category_name" class="text-forest-green">{{ featured()!.category_name }}</span>
+                <span v-if="formatDate(featured()!.created_at)" class="inline-flex items-center gap-1.5">
+                  <CalendarDays class="h-3.5 w-3.5" /> {{ formatDate(featured()!.created_at) }}
+                </span>
+              </p>
+              <h3 class="font-display text-2xl sm:text-3xl font-semibold leading-snug text-dark-olive group-hover:text-forest-green transition-colors mb-4">
+                {{ featured()!.title }}
+              </h3>
+              <p class="text-muted-foreground leading-relaxed mb-6">
+                {{ excerpt(featured()!.excerpt ?? featured()!.content) }}
+              </p>
+              <span class="inline-flex items-center gap-1.5 text-sm font-medium text-warm-orange group-hover:gap-2.5 transition-all">
+                Read the story
+                <ArrowRight class="h-4 w-4" />
+              </span>
+            </div>
+          </a>
+
+          <!-- Remaining stories -->
+          <div v-if="rest().length" class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
+            <a
+              v-for="blog in rest()"
+              :key="blog.id"
+              :href="`${liveBlogBase}/post.php?id=${blog.id}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group flex flex-col"
+            >
+              <div class="aspect-[16/10] overflow-hidden bg-muted rounded-lg mb-5">
+                <img
+                  v-if="blog.image"
+                  :src="blog.image"
+                  :alt="blog.title"
+                  class="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-700"
+                >
+                <div v-else class="w-full h-full flex items-center justify-center bg-secondary/60">
+                  <span class="font-display italic text-[3.5rem] leading-none text-forest-green/40 select-none">{{ blog.title.charAt(0) }}</span>
+                </div>
+              </div>
+              <div class="border-t border-border/70 pt-4">
+                <p class="eyebrow mb-2 flex items-center gap-2.5">
+                  <span v-if="blog.category_name" class="text-forest-green">{{ blog.category_name }}</span>
+                  <span v-if="blog.category_name && formatDate(blog.created_at)" class="text-border/70" aria-hidden="true">·</span>
+                  <span v-if="formatDate(blog.created_at)">{{ formatDate(blog.created_at) }}</span>
+                </p>
+                <h3 class="font-display text-xl font-semibold leading-snug text-dark-olive group-hover:text-forest-green transition-colors mb-2">
+                  {{ blog.title }}
+                </h3>
+                <p class="text-muted-foreground text-[0.95rem] leading-relaxed mb-3">
+                  {{ excerpt(blog.excerpt ?? blog.content, 140) }}
+                </p>
+                <span class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground group-hover:text-warm-orange transition-colors">
+                  <Clock class="h-3.5 w-3.5" />
+                  {{ readingTime(blog) }}
+                  <span v-if="(blog.views ?? 0) > 0" class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground group-hover:text-warm-orange transition-colors">
+                    <span class="text-border/70" aria-hidden="true">·</span>
+                    {{ Number(blog.views).toLocaleString() }} reads
+                  </span>
+                </span>
+              </div>
+            </a>
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <!-- Topics -->
+    <section v-if="categories.length" class="py-16 sm:py-20 px-5 sm:px-6 bg-secondary/40 border-y border-border/60">
+      <div class="max-w-4xl mx-auto">
+        <div class="flex flex-col gap-1.5 mb-6">
+          <h2 class="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-dark-olive">Explore the journal</h2>
+        </div>
+        <p class="text-muted-foreground text-[0.95rem] leading-relaxed mb-8 max-w-xl">
+          Wander by subject — every section is filed and kept by hand, one story at a time.
+        </p>
+        <div class="toc-list">
+          <a
+            v-for="(cat, i) in categories.slice(0, 8)"
+            :key="cat.id"
+            :href="`${liveBlogBase}/index.php?category=${cat.id}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="toc-row"
+          >
+            <span class="flex items-center gap-4">
+              <span class="toc-count">{{ String(i + 1).padStart(2, '0') }}</span>
+              <span class="toc-name">{{ cat.name }}</span>
+            </span>
+            <ArrowRight class="toc-arrow h-4 w-4" />
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- About -->
+    <section class="py-16 sm:py-20 px-5 sm:px-6">
+      <div class="max-w-3xl mx-auto text-center">
+        <div class="flex justify-center mb-6">
+          <span class="fleuron" aria-hidden="true"><span class="glyph">&#10086;</span></span>
+        </div>
+        <blockquote class="font-display text-2xl sm:text-[2rem] leading-snug font-medium text-dark-olive">
+          “We started WAM because the internet forgot how to slow down. Every piece here is
+          written, built, edited, and published by hand — for readers who still believe the best ideas
+          deserve more than a passing glance.”
+        </blockquote>
+        <p class="text-muted-foreground mt-8 text-[0.95rem] leading-relaxed max-w-xl mx-auto">
+          That means thoughtful essays, careful software, and a few strong opinions — and not a single popup.
+          If that sounds like your kind of reading, you're already in the right place.
+        </p>
+      </div>
+    </section>
+
+    <!-- Join -->
+    <section class="px-5 sm:px-6 pb-16 sm:pb-20">
+      <div class="max-w-3xl mx-auto text-center border border-border/70 rounded-xl bg-card paper-texture px-6 sm:px-12 py-14 sm:py-16">
+        <h2 class="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-dark-olive mb-4">
+          Your first story starts here
+        </h2>
+        <p class="text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed">
+          Create an account and we'll email you a link to sign in —
+          no password to remember. Then write, edit, and publish from your own quiet corner.
+        </p>
+        <div class="flex items-center justify-center gap-4 flex-wrap">
+          <a
+            :href="`${liveBlogBase}/signup.php`"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button size="lg" class="bg-forest-green hover:bg-forest-green/90 text-primary-foreground px-8 rounded-lg">
+              Create an account
+            </Button>
+          </a>
+          <Button
+            size="lg"
+            variant="ghost"
+            class="text-forest-green hover:text-forest-green/80 px-2 hover:bg-transparent"
+            @click="showGetStarted = true"
+          >
+            Sign in to write
           </Button>
         </div>
       </div>
     </section>
 
-    <!-- Featured Posts -->
-    <section id="featured" class="py-16 px-6">
-      <div class="max-w-6xl mx-auto">
-        <div class="flex items-end justify-between mb-10">
-          <div>
-            <h2 class="font-display text-3xl font-bold text-dark-olive mb-1">Featured Stories</h2>
-            <p class="text-muted-foreground">Handpicked articles we think you'll enjoy</p>
-          </div>
-          <a :href="liveBlogBase" target="_blank" rel="noopener noreferrer" class="text-forest-green hover:text-forest-green/80 font-medium flex items-center gap-1">
-            View all
-            <ArrowRight class="h-4 w-4" />
-          </a>
-        </div>
-
-        <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <div v-for="i in 3" :key="i" class="animate-pulse">
-            <div class="bg-muted rounded-2xl aspect-[16/10] mb-4"></div>
-            <div class="bg-muted rounded h-4 w-3/4 mb-2"></div>
-            <div class="bg-muted rounded h-4 w-1/2"></div>
-          </div>
-        </div>
-
-        <div v-else-if="blogs.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <a
-            v-for="blog in blogs.slice(0, 3)"
-            :key="blog.id"
-            :href="`${liveBlogBase}/post.php?id=${blog.id}`"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="group"
-          >
-            <Card class="h-full border-0 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden bg-card rounded-2xl">
-              <div class="aspect-[16/10] overflow-hidden bg-muted">
-                <img
-                  v-if="blog.image"
-                  :src="blog.image"
-                  :alt="blog.title"
-                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                >
-                <div v-else class="w-full h-full flex items-center justify-center bg-gradient-to-br from-warm-cream to-muted">
-                  <BookOpen class="h-12 w-12 text-forest-green/30" />
-                </div>
-              </div>
-              <CardContent class="p-6">
-                <div v-if="blog.category_name" class="inline-block px-3 py-1 bg-forest-green/10 text-forest-green text-xs font-medium rounded-full mb-3">
-                  {{ blog.category_name }}
-                </div>
-                <h3 class="font-display text-xl font-semibold mb-2 text-dark-olive group-hover:text-forest-green transition-colors">
-                  {{ blog.title }}
-                </h3>
-                <p class="text-muted-foreground text-sm leading-relaxed">
-                  {{ blog.content?.substring(0, 120) }}…
-                </p>
-              </CardContent>
-            </Card>
-          </a>
-        </div>
-
-        <div v-else class="text-center py-14 bg-card border border-border/50 rounded-2xl">
-          <BookOpen class="h-14 w-14 text-forest-green/25 mx-auto mb-4" />
-          <h3 class="font-display text-xl font-semibold text-dark-olive mb-1">Fresh stories on the way</h3>
-          <p class="text-muted-foreground">New articles are being written. Check back soon.</p>
-        </div>
-      </div>
-    </section>
-
-    <!-- About Section -->
-    <section class="py-16 px-6 bg-warm-cream/30">
-      <div class="max-w-4xl mx-auto text-center">
-        <h2 class="font-display text-3xl font-bold text-dark-olive mb-6">A quiet corner for curious minds</h2>
-        <p class="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-          In a world of endless scrolling and clickbait, we believe in the power of
-          thoughtful writing. Each piece here is crafted with care, designed to inform,
-          inspire, and spark meaningful conversation.
-        </p>
-        <div class="flex items-center justify-center gap-8 text-sm text-muted-foreground flex-wrap">
-          <div class="flex items-center gap-2">
-            <Heart class="h-4 w-4 text-forest-green" />
-            <span>Thoughtful content</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <EyeOff class="h-4 w-4 text-warm-orange" />
-            <span>No distractions</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <Palette class="h-4 w-4 text-dark-olive" />
-            <span>Clean design</span>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Categories -->
-    <section class="py-16 px-6">
-      <div class="max-w-6xl mx-auto">
-        <h2 class="font-display text-3xl font-bold text-dark-olive mb-8 text-center">Explore Topics</h2>
-        <div v-if="categories.length" class="flex flex-wrap justify-center gap-3">
-          <span
-            v-for="cat in categories.slice(0, 8)"
-            :key="cat.id"
-            class="px-5 py-2.5 bg-card border border-border rounded-full text-sm font-medium text-muted-foreground hover:border-forest-green hover:text-forest-green hover:bg-forest-green/5 transition-colors cursor-pointer"
-          >
-            {{ cat.name }}
-          </span>
-        </div>
-        <div v-else class="flex flex-wrap justify-center gap-3">
-          <span class="px-5 py-2.5 bg-card border border-border/60 rounded-full text-sm font-medium text-muted-foreground">Technology</span>
-          <span class="px-5 py-2.5 bg-card border border-border/60 rounded-full text-sm font-medium text-muted-foreground">Design</span>
-          <span class="px-5 py-2.5 bg-card border border-border/60 rounded-full text-sm font-medium text-muted-foreground">Life</span>
-          <span class="px-5 py-2.5 bg-card border border-border/60 rounded-full text-sm font-medium text-muted-foreground">Ideas</span>
-        </div>
-      </div>
-    </section>
-
     <!-- Footer -->
-    <footer class="border-t border-border/50 py-12 px-6 bg-warm-cream/20">
+    <footer class="border-t border-border/60 py-12 px-5 sm:px-6">
       <div class="max-w-6xl mx-auto">
-        <div class="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span class="text-primary-foreground font-display font-bold text-sm">W</span>
-            </div>
-            <span class="font-display font-semibold text-foreground">WAM Blog</span>
+        <div class="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
+          <div class="flex items-baseline gap-2">
+            <span class="font-display font-semibold text-xl text-dark-olive">WAM</span>
+            <span class="eyebrow text-forest-green">Blog</span>
           </div>
           <p class="text-sm text-muted-foreground">
-            Crafted with care for readers who appreciate quality content.
+            Stories worth your time, written with care.
           </p>
           <div class="flex items-center gap-6 text-sm text-muted-foreground">
             <a href="https://github.com/richiekaroki/php-blog-project-backend" target="_blank" rel="noopener noreferrer" class="hover:text-forest-green transition-colors">GitHub</a>
-            <a :href="liveBlogBase" target="_blank" rel="noopener noreferrer" class="hover:text-forest-green transition-colors">Live Demo</a>
+            <button
+              type="button"
+              @click="showGetStarted = true"
+              class="hover:text-forest-green transition-colors cursor-pointer"
+            >
+              Join the journal
+            </button>
           </div>
+        </div>
+        <div class="border-t border-border/50 pt-8 flex items-center justify-center gap-4">
+          <span class="fleuron" aria-hidden="true"><span class="glyph">&#10086;</span></span>
+          <button
+            type="button"
+            @click="scrollToTop"
+            class="text-xs uppercase tracking-[0.14em] font-semibold text-muted-foreground hover:text-forest-green transition-colors cursor-pointer"
+          >
+            Back to top
+          </button>
         </div>
       </div>
     </footer>

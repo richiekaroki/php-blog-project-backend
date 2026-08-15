@@ -2,6 +2,7 @@
 // tests/BlogTest.php - Comprehensive test suite for blog backend
 
 require __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../public/inc/post-format.php';
 
 use PHPUnit\Framework\TestCase;
 
@@ -901,5 +902,59 @@ class BlogTest extends TestCase
 
         $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute([$email]);
         $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute(['other-' . $email]);
+    }
+
+    public function testRendererEscapesAuthorHtml()
+    {
+        $html = renderPostContent("Hello <script>alert(1)</script> world");
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('&lt;script&gt;', $html);
+    }
+
+    public function testRendererRendersParagraphsAndHeadings()
+    {
+        $html = renderPostContent("## A heading\n\nFirst paragraph.\n\n### Sub heading");
+        $this->assertStringContainsString('<h2>A heading</h2>', $html);
+        $this->assertStringContainsString('<h3>Sub heading</h3>', $html);
+        $this->assertStringContainsString('<p>First paragraph.</p>', $html);
+    }
+
+    public function testRendererRendersBlockquoteAndList()
+    {
+        $html = renderPostContent("> A quoted line\n> continued\n\n- item one\n- item two");
+        $this->assertStringContainsString('<blockquote>', $html);
+        $this->assertStringContainsString('<ul>', $html);
+        $this->assertStringContainsString('<li>item one</li>', $html);
+        $this->assertStringContainsString('<li>item two</li>', $html);
+    }
+
+    public function testRendererRendersCodeFenceAndInlineMarkup()
+    {
+        $html = renderPostContent("```\n\$var = 1;\n```\n\nSome **bold** and `inline` text.");
+        $this->assertStringContainsString('<pre><code>', $html);
+        $this->assertStringContainsString('$var = 1;', $html);
+        $this->assertStringContainsString('<strong>bold</strong>', $html);
+        $this->assertStringContainsString('<code>inline</code>', $html);
+    }
+
+    public function testRendererAllowsHttpLinksOnly()
+    {
+        $html = renderPostContent('[safe](https://example.com) and [bad](javascript:alert(1)) and [danger](data:text/html,x)');
+        $this->assertStringContainsString('<a href="https://example.com"', $html);
+        $this->assertStringNotContainsString('href="javascript:', $html);
+        $this->assertStringNotContainsString('href="data:', $html);
+        $this->assertStringNotContainsString('href="//', $html);
+    }
+
+    public function testStripMarkdownProducesPlainText()
+    {
+        $text = stripMarkdown("## Title\n\n> quote\n\n- item **bold** and *emphasised* and [link](https://example.com)");
+        $this->assertStringNotContainsString('#', $text);
+        $this->assertStringNotContainsString('>', $text);
+        $this->assertStringNotContainsString('*', $text);
+        $this->assertStringContainsString('bold', $text);
+        $this->assertStringContainsString('emphasised', $text);
+        $this->assertStringContainsString('link', $text);
+        $this->assertStringNotContainsString('https://example.com', $text);
     }
 }
