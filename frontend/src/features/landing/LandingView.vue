@@ -61,7 +61,8 @@ onMounted(async () => {
     <!-- Navbar -->
     <nav class="border-b border-border/60 bg-background/85 backdrop-blur-md sticky top-0 z-50">
       <div class="max-w-6xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between">
-        <a href="/" class="flex items-baseline gap-2">
+        <a href="/" class="flex items-center gap-2.5">
+          <img src="/favicon.svg" alt="WAM logo" width="64" height="64" class="h-9 w-9 shrink-0" />
           <span class="font-display font-semibold text-2xl tracking-tight text-dark-olive">WAM</span>
           <span class="eyebrow text-forest-green hidden sm:inline">Blog</span>
         </a>
@@ -362,7 +363,8 @@ onMounted(async () => {
     <footer class="border-t border-border/60 py-12 px-5 sm:px-6">
       <div class="max-w-6xl mx-auto">
         <div class="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
-          <div class="flex items-baseline gap-2">
+          <div class="flex items-center gap-2">
+            <img src="/favicon.svg" alt="WAM logo" width="64" height="64" class="h-8 w-8 shrink-0" />
             <span class="font-display font-semibold text-xl text-dark-olive">WAM</span>
             <span class="eyebrow text-forest-green">Blog</span>
           </div>
