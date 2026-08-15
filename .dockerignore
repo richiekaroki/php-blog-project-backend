@@ -1,4 +1,6 @@
 node_modules/
+frontend/node_modules/
+frontend/dist/
 vendor/
 .env
 .git/
@@ -6,6 +8,9 @@ vendor/
 tests/
 .idea/
 .vscode/
+.playwright-mcp/
+screenshots/
+logs/
 *.md
 *.log
 query
