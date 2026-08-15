@@ -181,12 +181,6 @@ class Auth
         return $stmt->rowCount();
     }
 
-    public static function isLoggedIn(): bool
-    {
-        self::startSession();
-        return isset($_SESSION['admin']);
-    }
-
     public static function getRole(): ?string
     {
         return $_SESSION['user_role'] ?? null;

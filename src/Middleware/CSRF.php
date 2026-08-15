@@ -27,19 +27,9 @@ class CSRF
         }
     }
 
-    public static function token(): string
-    {
-        return $_SESSION['csrf_token'] ?? '';
-    }
-
-    public static function field(): string
-    {
-        return '<input type="hidden" name="csrf_token" value="' . self::token() . '">';
-    }
-
     public static function verify(?string $token = null): bool
     {
         $token = $token ?? $_POST['csrf_token'] ?? '';
-        return hash_equals(self::token(), $token);
+        return hash_equals($_SESSION['csrf_token'] ?? '', $token);
     }
 }

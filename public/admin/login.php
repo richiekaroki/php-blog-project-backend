@@ -11,6 +11,7 @@ use App\Auth\MagicLink;
 use App\Auth\Totp;
 use App\Mail\Mailer;
 use App\Models\ActivityLog;
+use App\Support\Env;
 
 CORS::handle();
 
@@ -52,11 +53,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
                 // Auto-provision: create the account if this is a new email.
                 $user = \App\Models\Invitation::provision($magicEmail, 'editor');
 
-                $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
+                $ttl = (int)(Env::get('MAGIC_LINK_TTL') ?: 600);
                 $magic = new MagicLink();
                 $token = $magic->create($magicEmail, $ttl);
 
-                $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
+                $appUrl = rtrim((string)(Env::get('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
                 // Deliver the token in the URL fragment (#magic=...) instead of the
                 // query string so it never appears in server/referer logs.
                 $loginUrl = $appUrl . '/admin/login.php#magic=' . urlencode($token);

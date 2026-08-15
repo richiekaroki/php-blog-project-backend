@@ -2,6 +2,8 @@
 
 namespace App\Auth;
 
+use App\Support\Env;
+
 /**
  * Stateless magic link tokens signed with APP_KEY (HMAC-SHA256).
  * No token is stored in the database — each link carries its own
@@ -109,24 +111,6 @@ class MagicLink
 
     private static function appKey(): string
     {
-        foreach (['APP_KEY'] as $key) {
-            if (!empty($_SERVER[$key])) return $_SERVER[$key];
-            if (!empty($_ENV[$key])) return $_ENV[$key];
-            $value = getenv($key);
-            if ($value !== false && $value !== '') return $value;
-        }
-
-        $envFile = dirname(__DIR__, 2) . '/.env';
-        if (file_exists($envFile)) {
-            foreach (file($envFile) as $line) {
-                if (trim($line) === '' || trim($line)[0] === '#') continue;
-                $parts = explode('=', $line, 2);
-                if (count($parts) === 2 && trim($parts[0]) === 'APP_KEY') {
-                    return trim(trim($parts[1]), '"');
-                }
-            }
-        }
-
-        return '';
+        return (string)Env::get('APP_KEY', '');
     }
 }

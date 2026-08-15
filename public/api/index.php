@@ -9,6 +9,7 @@ use App\Middleware\Auth;
 use App\Models\ActivityLog;
 use App\Auth\MagicLink;
 use App\Mail\Mailer;
+use App\Support\Env;
 
 CORS::handle();
 
@@ -655,11 +656,11 @@ function handleMagic($method, $pdo, $rateLimit, $ip) {
     }
 
     try {
-        $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
+        $ttl = (int)(Env::get('MAGIC_LINK_TTL') ?: 600);
         $magic = new MagicLink();
         $token = $magic->create($email, $ttl);
 
-        $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
+        $appUrl = rtrim((string)(Env::get('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
         // Token in the URL fragment (#magic=...) so it never appears in query
         // strings, server logs, or Referer headers. login.php reads it via JS
         // and posts it to a redeem endpoint.
@@ -719,10 +720,10 @@ function handleSignupRequest($method, $pdo, $rateLimit, $ip) {
     }
 
     try {
-        $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
+        $ttl = (int)(Env::get('MAGIC_LINK_TTL') ?: 600);
         $magic = new MagicLink();
         $token = $magic->create($email, $ttl);
-        $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
+        $appUrl = rtrim((string)(Env::get('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
         // Token in the URL fragment (#magic=...) so it never appears in query
         // strings, server logs, or Referer headers.
         $loginUrl = $appUrl . '/admin/login.php#magic=' . urlencode($token);

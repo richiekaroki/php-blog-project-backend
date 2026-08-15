@@ -42,12 +42,4 @@ class ActivityLog
         $stmt->execute([$limit]);
         return $stmt->fetchAll();
     }
-
-    public static function getByEntity(string $entityType, int $entityId): array
-    {
-        $pdo = self::getPdo();
-        $stmt = $pdo->prepare("SELECT * FROM activity_log WHERE entity_type = ? AND entity_id = ? ORDER BY created_at DESC");
-        $stmt->execute([$entityType, $entityId]);
-        return $stmt->fetchAll();
-    }
 }

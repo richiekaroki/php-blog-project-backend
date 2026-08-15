@@ -9,6 +9,7 @@ use App\Middleware\RateLimit;
 use App\Models\Invitation;
 use App\Auth\MagicLink;
 use App\Mail\Mailer;
+use App\Support\Env;
 
 // Rate limit signup requests by IP (5 per 15 minutes) to prevent abuse.
 $pdo = \App\Database\Connection::getInstance();
@@ -34,10 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($user === null) {
                     $error = 'Could not create your account. Please try again later.';
                 } else {
-                    $ttl = (int)(getenv('MAGIC_LINK_TTL') ?: 600);
+                    $ttl = (int)(Env::get('MAGIC_LINK_TTL') ?: 600);
                     $magic = new MagicLink();
                     $token = $magic->create($email, $ttl);
-                    $appUrl = rtrim((string)(getenv('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
+                    $appUrl = rtrim((string)(Env::get('APP_URL') ?: 'https://php-blog-backend.onrender.com'), '/');
                     $loginUrl = $appUrl . '/admin/login.php?action=magic&token=' . urlencode($token);
                     $safeUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
 

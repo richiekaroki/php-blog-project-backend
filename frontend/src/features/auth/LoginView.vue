@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useToast } from '@/composables/useToast'
+import { useRouter, RouterLink } from 'vue-router'
 import { api } from '@/api/client'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
@@ -11,10 +10,8 @@ import CardTitle from '@/components/ui/CardTitle.vue'
 import CardDescription from '@/components/ui/CardDescription.vue'
 import CardContent from '@/components/ui/CardContent.vue'
 import { Loader2, ArrowLeft, Mail, ArrowRight, CheckCircle2, Feather } from 'lucide-vue-next'
-import { RouterLink } from 'vue-router'
 
 const router = useRouter()
-const toast = useToast()
 
 const magicEmail = ref('')
 const magicLoading = ref(false)

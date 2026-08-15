@@ -83,6 +83,13 @@ function renderPostContent(string $content): string
             continue;
         }
 
+        // Heading # (H1)
+        if (preg_match('/^#\s+(.+)$/', $trimmed, $m)) {
+            $html .= '<h1>' . inlineMarkup(htmlspecialchars($m[1], ENT_QUOTES, 'UTF-8')) . '</h1>';
+            $i++;
+            continue;
+        }
+
         // Unordered list
         if (preg_match('/^[-*]\s+(.+)$/', $trimmed, $m)) {
             $items = [];

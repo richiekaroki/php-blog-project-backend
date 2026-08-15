@@ -2,6 +2,7 @@
 
 namespace App\Database;
 
+use App\Support\Env;
 use PDO;
 use PDOException;
 
@@ -19,12 +20,12 @@ class Connection
 
     private static function createConnection(): PDO
     {
-        $dbUrlRaw = $_SERVER['DATABASE_URL'] ?? $_ENV['DATABASE_URL'] ?? getenv('DATABASE_URL') ?: null;
-        $dbHost = $_SERVER['DB_HOST'] ?? $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: null;
-        $dbPort = $_SERVER['DB_PORT'] ?? $_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: null;
-        $dbName = $_SERVER['DB_DATABASE'] ?? $_ENV['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: null;
-        $dbUser = $_SERVER['DB_USERNAME'] ?? $_ENV['DB_USERNAME'] ?? getenv('DB_USERNAME') ?: null;
-        $dbPass = $_SERVER['DB_PASSWORD'] ?? $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: null;
+        $dbUrlRaw = Env::get('DATABASE_URL');
+        $dbHost = Env::get('DB_HOST');
+        $dbPort = Env::get('DB_PORT');
+        $dbName = Env::get('DB_DATABASE');
+        $dbUser = Env::get('DB_USERNAME');
+        $dbPass = Env::get('DB_PASSWORD');
 
         if ($dbUrlRaw) {
             $dbUrl = parse_url($dbUrlRaw);
@@ -48,25 +49,14 @@ class Connection
             $dbname = $dbName ?? 'mizzle_backend';
             $username = $dbUser ?? 'postgres';
             $password = $dbPass ?? '';
-            $sslmode = 'require';
+            $sslmode = Env::get('DB_SSLMODE', 'require');
             $channelBinding = null;
         } else {
-            $env = [];
-            $envFile = dirname(__DIR__, 2) . '/.env';
-            if (file_exists($envFile)) {
-                foreach (file($envFile) as $line) {
-                    if (trim($line) === '' || trim($line)[0] === '#') continue;
-                    $parts = explode('=', $line, 2);
-                    if (count($parts) === 2) {
-                        $env[trim($parts[0])] = trim(trim($parts[1]), '"');
-                    }
-                }
-            }
-            $host = $env['DB_HOST'] ?? '127.0.0.1';
-            $port = $env['DB_PORT'] ?? '5432';
-            $dbname = $env['DB_DATABASE'] ?? 'mizzle_backend';
-            $username = $env['DB_USERNAME'] ?? 'postgres';
-            $password = $env['DB_PASSWORD'] ?? '';
+            $host = $dbHost ?? '127.0.0.1';
+            $port = $dbPort ?? '5432';
+            $dbname = $dbName ?? 'mizzle_backend';
+            $username = $dbUser ?? 'postgres';
+            $password = $dbPass ?? '';
             $sslmode = 'prefer';
             $channelBinding = null;
         }

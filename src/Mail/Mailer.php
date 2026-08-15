@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Support\Env;
+
 /**
  * Minimal SMTP client for sending transactional email.
  * Uses stream sockets + STARTTLS (no external dependency required).
@@ -227,27 +229,7 @@ class Mailer
 
     private static function env(string $key, string $default = ''): string
     {
-        foreach (['SERVER', 'ENV'] as $scope) {
-            $values = $scope === 'SERVER' ? $_SERVER : $_ENV;
-            if (isset($values[$key]) && $values[$key] !== '') {
-                return (string)$values[$key];
-            }
-        }
-        $value = getenv($key);
-        if ($value !== false && $value !== '') {
-            return $value;
-        }
-
-        $envFile = dirname(__DIR__, 2) . '/.env';
-        if (file_exists($envFile)) {
-            foreach (file($envFile) as $line) {
-                if (trim($line) === '' || trim($line)[0] === '#') continue;
-                $parts = explode('=', $line, 2);
-                if (count($parts) === 2 && trim($parts[0]) === $key) {
-                    return trim(trim($parts[1]), '"');
-                }
-            }
-        }
-        return $default;
+        $value = Env::get($key);
+        return $value === null ? $default : $value;
     }
 }
