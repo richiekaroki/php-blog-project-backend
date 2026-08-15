@@ -9,6 +9,8 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+# Dev-only env (local host URL — never commit)
+.env.development
 
 # IDE
 .vscode/
