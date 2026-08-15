@@ -274,6 +274,7 @@ function render2faChallenge(?string $error = null): void
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/favicon-v2.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Two-Factor Authentication · WAM Blog</title>
@@ -287,7 +288,7 @@ function render2faChallenge(?string $error = null): void
 <body class="auth-page">
     <div class="auth-container">
         <div class="auth-card">
-            <img class="auth-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
+            <img class="auth-logo" src="/favicon-v2.svg" alt="WAM" width="64" height="64">
             <h1>Two-factor check</h1>
             <p class="subtitle">Enter the 6-digit code from your authenticator app for <strong><?php echo $email; ?></strong></p>
             <?php if ($error): ?>
@@ -322,6 +323,7 @@ function render2faChallenge(?string $error = null): void
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/favicon-v2.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login · WAM Blog</title>
@@ -344,7 +346,7 @@ function render2faChallenge(?string $error = null): void
         </a>
 
         <div class="auth-card">
-            <img class="auth-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
+            <img class="auth-logo" src="/favicon-v2.svg" alt="WAM" width="64" height="64">
             <h1>Welcome back</h1>
             <p class="subtitle">Sign in to manage your stories</p>
 

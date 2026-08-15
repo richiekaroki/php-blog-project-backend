@@ -112,6 +112,7 @@ if (isset($_GET['edit'])) {
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/favicon-v2.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Categories · WAM Blog</title>
@@ -126,7 +127,7 @@ if (isset($_GET['edit'])) {
     <div class="layout">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <img class="sidebar-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
+                <img class="sidebar-logo" src="/favicon-v2.svg" alt="WAM" width="64" height="64">
                 <div><div class="sidebar-brand">WAM Blog</div><div class="sidebar-sub">Content Studio</div></div>
             </div>
             <nav class="sidebar-nav">

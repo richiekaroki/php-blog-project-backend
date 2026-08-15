@@ -59,6 +59,7 @@ $postDate = $post['created_at'] ?? null;
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/favicon-v2.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($post['title']); ?> · WAM Blog</title>
@@ -91,7 +92,7 @@ $postDate = $post['created_at'] ?? null;
     <nav class="nav">
         <div class="nav-inner">
             <a href="/" class="nav-brand">
-                <img class="nav-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
+                <img class="nav-logo" src="/favicon-v2.svg" alt="WAM" width="64" height="64">
                 <span class="nav-title">WAM Blog</span>
             </a>
             <div class="nav-links">
@@ -191,7 +192,7 @@ $postDate = $post['created_at'] ?? null;
     <footer class="footer">
         <div class="footer-inner">
             <div class="footer-brand">
-                <img class="nav-logo" style="width: 32px; height: 32px;" src="/favicon.svg" alt="WAM" width="64" height="64">
+                <img class="nav-logo" style="width: 32px; height: 32px;" src="/favicon-v2.svg" alt="WAM" width="64" height="64">
                 <span class="nav-title" style="font-size: 1rem;">WAM Blog</span>
             </div>
             <p class="footer-text">Crafted with care for readers who appreciate quality content.</p>

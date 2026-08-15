@@ -223,6 +223,7 @@ $roleLabel = ucfirst($currentRole);
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/favicon-v2.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blog Management · WAM Blog</title>
@@ -238,7 +239,7 @@ $roleLabel = ucfirst($currentRole);
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <img class="sidebar-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
+                <img class="sidebar-logo" src="/favicon-v2.svg" alt="WAM" width="64" height="64">
                 <div>
                     <div class="sidebar-brand">WAM Blog</div>
                     <div class="sidebar-sub">Content Studio</div>
