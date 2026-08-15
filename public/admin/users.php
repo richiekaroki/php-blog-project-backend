@@ -104,7 +104,7 @@ $users = $pdo->query("SELECT id, username, email, role, totp_secret FROM admins 
     <div class="layout">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-logo">W</div>
+                <img class="sidebar-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
                 <div>
                     <div class="sidebar-brand">WAM Blog</div>
                     <div class="sidebar-sub">Content Studio</div>

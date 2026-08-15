@@ -9,7 +9,7 @@ import CardHeader from '@/components/ui/CardHeader.vue'
 import CardTitle from '@/components/ui/CardTitle.vue'
 import CardDescription from '@/components/ui/CardDescription.vue'
 import CardContent from '@/components/ui/CardContent.vue'
-import { Loader2, ArrowLeft, Mail, ArrowRight, CheckCircle2, Feather } from 'lucide-vue-next'
+import { Loader2, ArrowLeft, Mail, ArrowRight, CheckCircle2 } from 'lucide-vue-next'
 
 const router = useRouter()
 
@@ -47,9 +47,7 @@ async function handleMagicSubmit() {
 
       <Card class="border-border/70 shadow-[0_24px_60px_-24px_rgba(38,33,25,0.35)] bg-card rounded-xl overflow-hidden">
         <CardHeader class="text-center pb-2 pt-8">
-          <div class="w-11 h-11 bg-forest-green rounded-full flex items-center justify-center mx-auto mb-4 rotate-[-6deg]">
-            <Feather class="h-5 w-5 text-primary-foreground" />
-          </div>
+          <img src="/favicon.svg" alt="WAM logo" width="64" height="64" class="w-12 h-12 mx-auto mb-4 rounded-xl" />
           <CardTitle class="font-display text-[1.75rem] tracking-tight text-dark-olive">Welcome back</CardTitle>
           <CardDescription class="text-muted-foreground">Sign in to keep writing</CardDescription>
         </CardHeader>

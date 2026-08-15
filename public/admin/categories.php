@@ -126,7 +126,7 @@ if (isset($_GET['edit'])) {
     <div class="layout">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-logo">W</div>
+                <img class="sidebar-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
                 <div><div class="sidebar-brand">WAM Blog</div><div class="sidebar-sub">Content Studio</div></div>
             </div>
             <nav class="sidebar-nav">

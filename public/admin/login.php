@@ -287,7 +287,7 @@ function render2faChallenge(?string $error = null): void
 <body class="auth-page">
     <div class="auth-container">
         <div class="auth-card">
-            <div class="auth-logo"><span class="auth-logo-text">W</span></div>
+            <img class="auth-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
             <h1>Two-factor check</h1>
             <p class="subtitle">Enter the 6-digit code from your authenticator app for <strong><?php echo $email; ?></strong></p>
             <?php if ($error): ?>
@@ -344,7 +344,7 @@ function render2faChallenge(?string $error = null): void
         </a>
 
         <div class="auth-card">
-            <div class="auth-logo"><span class="auth-logo-text">W</span></div>
+            <img class="auth-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
             <h1>Welcome back</h1>
             <p class="subtitle">Sign in to manage your stories</p>
 

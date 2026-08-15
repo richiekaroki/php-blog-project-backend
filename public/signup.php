@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Back to blog
         </a>
         <div class="auth-card">
-            <div class="auth-logo"><span class="auth-logo-text">W</span></div>
+            <img class="auth-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
             <h1>Join WAM Blog</h1>
             <p class="subtitle">Enter your email and we'll create your account and send you a secure sign in link.</p>
 

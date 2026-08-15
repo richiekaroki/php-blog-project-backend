@@ -91,7 +91,7 @@ $postDate = $post['created_at'] ?? null;
     <nav class="nav">
         <div class="nav-inner">
             <a href="/" class="nav-brand">
-                <div class="nav-logo">W</div>
+                <img class="nav-logo" src="/favicon.svg" alt="WAM" width="64" height="64">
                 <span class="nav-title">WAM Blog</span>
             </a>
             <div class="nav-links">
@@ -191,7 +191,7 @@ $postDate = $post['created_at'] ?? null;
     <footer class="footer">
         <div class="footer-inner">
             <div class="footer-brand">
-                <div class="nav-logo" style="width: 32px; height: 32px; font-size: 0.9rem;">W</div>
+                <img class="nav-logo" style="width: 32px; height: 32px;" src="/favicon.svg" alt="WAM" width="64" height="64">
                 <span class="nav-title" style="font-size: 1rem;">WAM Blog</span>
             </div>
             <p class="footer-text">Crafted with care for readers who appreciate quality content.</p>

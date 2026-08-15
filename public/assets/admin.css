@@ -216,13 +216,9 @@ button { font-family: inherit; }
 
 .sidebar-logo {
   width: 40px; height: 40px;
-  background: var(--green);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--primary-fg);
-  font-family: 'Fraunces', Georgia, serif;
-  font-weight: 700; font-size: 1.15rem;
-  transform: rotate(-6deg);
+  border-radius: 10px;
+  display: block;
+  flex-shrink: 0;
 }
 
 .sidebar-brand { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 1.2rem; color: var(--olive); line-height: 1.1; }
@@ -659,14 +655,10 @@ tr:last-child td { border-bottom: none; }
 
 .auth-logo {
   width: 46px; height: 46px;
-  background: var(--green);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+  display: block;
   margin: 0 auto 1.25rem;
-  transform: rotate(-6deg);
 }
-.auth-logo svg { width: 22px; height: 22px; color: var(--primary-fg); }
-.auth-logo-text { font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 1.3rem; color: var(--primary-fg); }
 
 .auth-card h1 { font-size: 1.6rem; font-weight: 600; text-align: center; color: var(--olive); margin-bottom: 0.4rem; }
 

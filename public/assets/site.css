@@ -166,14 +166,8 @@ p { text-wrap: pretty; }
 .nav-brand { display: flex; align-items: center; gap: 0.75rem; }
 .nav-logo {
   width: 34px; height: 34px;
-  background: var(--green);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--primary-fg);
-  font-family: 'Fraunces', Georgia, serif;
-  font-weight: 700;
-  font-size: 1rem;
-  transform: rotate(-6deg);
+  border-radius: 9px;
+  display: block;
 }
 .nav-title { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 1.15rem; color: var(--olive); }
 .nav-links { display: flex; gap: 0.75rem; align-items: center; }
@@ -668,13 +662,10 @@ p { text-wrap: pretty; }
 }
 .auth-logo {
   width: 46px; height: 46px;
-  background: var(--green);
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  border-radius: 12px;
+  display: block;
   margin: 0 auto 1.25rem;
-  transform: rotate(-6deg);
 }
-.auth-logo-text { font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 1.3rem; color: var(--primary-fg); }
 .auth-card h1 { font-size: 1.6rem; font-weight: 600; text-align: center; margin-bottom: 0.4rem; }
 .subtitle { text-align: center; color: var(--muted-fg); font-size: 0.9rem; margin-bottom: 1.75rem; }
 .auth-card label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--olive); margin-bottom: 0.45rem; }
