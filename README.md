@@ -95,15 +95,13 @@ Generate an `APP_KEY` (32 random bytes, `base64:` prefix):
 php -r "echo 'base64:' . base64_encode(random_bytes(32)) . PHP_EOL;"
 ```
 
-Create the database and apply migrations in order:
+Create the database and apply migrations (auto-applies pending ones in order):
 
 ```bash
-createdb mizzle_backend   # or: psql -U postgres -c "CREATE DATABASE mizzle_backend;"
-psql -U postgres -d mizzle_backend \
-  -f sql/ruru_schema.sql \
-  -f sql/migrations/2026_add_admin_email.sql \
-  -f sql/migrations/2026_08_13_create_invitations.sql \
-  -f sql/migrations/2026_08_13_magic_link_security.sql
+createdb mizzle_backend       # or: psql -U postgres -c "CREATE DATABASE mizzle_backend;"
+psql -U postgres -d mizzle_backend -f sql/ruru_schema.sql   # base schema (includes admins)
+composer migrate              # runs sql/migrations/*.sql in order, tracked in schema_migrations
+composer migrate:status       # list APPLIED / PENDING without applying
 ```
 
 Set a real email on an admin row so magic links can be sent:
@@ -130,23 +128,21 @@ http://php-blog-backend-project.test   # Herd virtual host
 
 ## Neon + Render Migration
 
-Render links a **Neon** Postgres via `DATABASE_URL`. Schema changes are **manual** — they do not run on deploy. Use the **direct (unpooled)** connection for DDL.
+Render links a **Neon** Postgres via `DATABASE_URL`. **Migrations now run automatically** on every deploy: the Docker start command runs `php bin/migrate.php` before the app boots. Files in `sql/migrations/` are applied in filename order, each exactly once (tracked in `schema_migrations`), inside a transaction.
+
+To add a new schema change: drop a file in `sql/migrations/` named `<YYYY_MM_DD>_<description>.sql`, then push to `main`. Render rebuilds and the migration applies itself before the new version goes live.
+
+**Manual run against Neon (if you need to apply without a deploy):**
 
 **Option A — Neon SQL Editor (easiest):**
 1. [console.neon.tech](https://console.neon.tech) → your project → **SQL Editor**.
-2. Paste `sql/migrations/2026_08_13_magic_link_security.sql` → **Run**.
-3. Repeat for `2026_08_14_drop_admins_password.sql` and `2026_08_14_login_rate_limits.sql`.
+2. Paste the migration file's contents → **Run**.
 
-**Option B — `psql` (local):**
+**Option B — `composer migrate` pointed at Neon:**
 ```bash
-psql "postgresql://user:password@host:dbname?sslmode=require" \
-  -f sql/migrations/2026_08_13_magic_link_security.sql
-psql "postgresql://user:password@host:dbname?sslmode=require" \
-  -f sql/migrations/2026_08_14_drop_admins_password.sql
-psql "postgresql://user:password@host:dbname?sslmode=require" \
-  -f sql/migrations/2026_08_14_login_rate_limits.sql
+DATABASE_URL="postgresql://user:password@host:dbname?sslmode=require" composer migrate
 ```
-Neon requires `sslmode=require`. Use the port **5432** (direct) connection string, not the `-pooler` one.
+Use the port **5432** (direct) connection string, not the `-pooler` one, for DDL.
 
 **Option C — Render Shell:**
 Render dashboard → service → **Shell** → `psql "$DATABASE_URL"` and paste the SQL.
@@ -178,7 +174,7 @@ Pushing to `main` triggers an auto-rebuild on Render. Set in the dashboard (neve
 
 `render.yaml` pins the rest (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_FROM_*`, `MAGIC_LINK_TTL=600`, `ADMIN_NOTIFICATION_EMAILS`, health check path). `MAIL_FROM_ADDRESS` **must be a sender verified in your Brevo account** — if it isn't, Brevo silently rejects every email while the API still returns 200 (set the app's default to a verified sender). When a brand-new account is auto-provisioned via magic-link sign-in, the app emails every address in `ADMIN_NOTIFICATION_EMAILS` (comma-separated) so you know about new users; leave it empty to disable. `DATABASE_URL` may include `?sslmode=require&channel_binding=require` — both params are now honoured.
 
-**Order of operations for a fresh deploy:** deploy code → apply the latest SQL migration to Neon → set secrets → sign in via magic link.
+**Order of operations for a fresh deploy:** deploy code → migrations auto-run on boot → set secrets → sign in via magic link.
 
 ---
 

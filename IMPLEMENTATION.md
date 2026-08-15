@@ -235,16 +235,18 @@ API responses use the shared `sendResponse` helper (adds `request_id`).
 
 ## 8. Database Migrations
 
-Apply in order:
+Migrations live in `sql/migrations/` and are applied in filename order by `bin/migrate.php`. Each file runs exactly once (tracked in the `schema_migrations` table), inside a transaction. `bin/migrate.php` mirrors `Connection.php`'s config resolution (DATABASE_URL, or DB_* vars, or a local `.env`).
 
 | File | Purpose |
 |------|---------|
-| `sql/ruru_schema.sql` | Base schema: `admins`, `roles`, `user_roles`, `blogs`, `activity_log` |
+| `sql/ruru_schema.sql` | Base schema: `admins`, `roles`, `user_roles`, `blogs`, `activity_log` (applied manually, not via the runner) |
 | `sql/migrations/2026_add_admin_email.sql` | Adds `admins.email` |
 | `sql/migrations/2026_08_13_create_invitations.sql` | `invitations` table (legacy sign-up requests; kept for compatibility) |
 | `sql/migrations/2026_08_13_magic_link_security.sql` | `magic_link_uses`, `auth_sessions`, `admins.totp_secret` |
+| `sql/migrations/2026_08_14_drop_admins_password.sql` | Drops the legacy `admins.password` column |
+| `sql/migrations/2026_08_14_login_rate_limits.sql` | `login_rate_limits` DB-backed IP rate limiting |
 
-**Neon / Render note:** migrations do not run automatically on deploy. Apply `2026_08_13_magic_link_security.sql` to the Neon database using the direct (non-pooler) connection — see README §Neon Migration.
+**Neon / Render note:** migrations run automatically on deploy — the Docker start command runs `php bin/migrate.php` before the app boots (Render's free tier has no `preDeployCommand`). Locally, use `composer migrate` / `composer migrate:status`. Add a new migration as `<YYYY_MM_DD>_<description>.sql` and push to `main`.
 
 ---
 

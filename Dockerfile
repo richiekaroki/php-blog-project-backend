@@ -52,5 +52,8 @@ COPY nginx.conf /etc/nginx/http.d/default.conf
 # Expose port 8080 (Render uses this)
 EXPOSE 8080
 
-# Start both PHP-FPM and Nginx
-CMD sh -c "php-fpm -D && nginx -g 'daemon off;'"
+# Start both PHP-FPM and Nginx.
+# Migrations run first so a fresh deploy always has the latest schema. They are
+# idempotent and tracked in schema_migrations, so re-runs are no-ops. (Render's
+# free tier does not support preDeployCommand, so the start command is used.)
+CMD sh -c "php bin/migrate.php && php-fpm -D && nginx -g 'daemon off;'"

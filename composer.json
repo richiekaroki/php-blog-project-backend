@@ -18,5 +18,10 @@
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0 || ^11.0 || ^12.0 || ^13.0"
+    },
+    "scripts": {
+        "migrate": "@php bin/migrate.php",
+        "migrate:status": "@php bin/migrate.php --status",
+        "test": "phpunit --testdox tests/"
     }
 }

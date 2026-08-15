@@ -57,14 +57,5 @@ jobs:
       - name: Lint PHP Files
         run: php -l $(find . -name '*.php' | grep -v vendor | grep -v '.github')
 
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Herd Deploy (Placeholder)
-        run: echo "Deploy to Herd would happen here"
-        # In production, would use Herd API or manual deployment
+  # Deployment is handled by Render's automatic deploy on push to main
+  # (autoDeployTrigger on the service), so no deploy job is needed here.
