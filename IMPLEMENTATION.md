@@ -15,7 +15,7 @@ This document describes how the pieces are wired together, the exact request flo
 | PHP admin | Live | `/admin/login.php`, `/admin/blogs.php`, `/admin/categories.php`, `/admin/edit-blog.php`, `/admin/profile.php` |
 | REST API | Live | `/api/index.php?action=...` |
 | Database | Neon PostgreSQL 17 | Direct (unpooled) connection for DDL; pooler for app traffic. |
-| Email | Brevo SMTP | Magic-link delivery. |
+| Email | Brevo HTTP API | Magic-link delivery + admin notifications (SMTP fallback only when no `BREVO_API_KEY`). |
 
 Live URLs: https://php-blog-backend.onrender.com
 
@@ -259,7 +259,8 @@ Migrations live in `sql/migrations/` and are applied in filename order by `bin/m
 | `DB_*` | local | — | Local pgsql config (`DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`). |
 | `APP_URL` | — | `http://127.0.0.1` | Base URL used to build magic-link URLs (must be the public origin). |
 | `MAGIC_LINK_TTL` | — | `600` | Link lifetime in seconds. |
-| `MAIL_HOST/PORT/USERNAME/PASSWORD` | ✅ | Brevo defaults | SMTP creds. Never commit `MAIL_PASSWORD`. |
+| `MAIL_HOST/PORT/USERNAME/PASSWORD` | fallback | Brevo defaults | SMTP creds (fallback only when no `BREVO_API_KEY`; SMTP ports are blocked on Render's free tier). Never commit `MAIL_PASSWORD`. |
+| `BREVO_API_KEY` | Render | — | Brevo Transactional Email API key — **primary** mail path (HTTP over 443). |
 | `MAIL_FROM_ADDRESS/NAME` | — | — | Sender identity. **Must be a Brevo-verified sender**, or Brevo rejects the send while the API returns 200. |
 | `ADMIN_NOTIFICATION_EMAILS` | — | — | Comma-separated emails emailed when a new account is auto-provisioned (empty = disabled). |
 | `DATABASE_URL` query string | — | — | `sslmode` and `channel_binding` are parsed and passed into the DSN (Neon recommends `channel_binding=require`). |

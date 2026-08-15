@@ -1,12 +1,12 @@
 # System Design & Architecture
 
-> **WAM Blog** — a passwordless, role-aware blog platform: PHP 8.4 backend (Nginx + PHP-FPM, Docker), Vue 3 public SPA, Neon PostgreSQL, Brevo SMTP, hosted on Render.
+> **WAM Blog** — a passwordless, role-aware blog platform: PHP 8.4 backend (Nginx + PHP-FPM, Docker), Vue 3 public SPA, Neon PostgreSQL, Brevo HTTP API, hosted on Render.
 
 ---
 
 ## 1. System Overview
 
-A single Docker container serves both the public Vue SPA and the PHP admin/API from one Nginx instance, so everything is same-origin (no CORS in production). The database is a managed Neon PostgreSQL instance; magic-link emails go through Brevo SMTP.
+A single Docker container serves both the public Vue SPA and the PHP admin/API from one Nginx instance, so everything is same-origin (no CORS in production). The database is a managed Neon PostgreSQL instance; magic-link emails and admin notifications go through the Brevo HTTP API (SMTP is only a fallback — its ports are blocked on Render's free tier).
 
 ```
                          ┌────────────────────────────────────────────┐
@@ -26,7 +26,7 @@ A single Docker container serves both the public Vue SPA and the PHP admin/API f
                                    ┌──────────────────────────┼───────────┐
                                    ▼                          ▼           ▼
                           ┌──────────────┐           ┌────────────┐  ┌──────────┐
-                          │ Neon         │           │ Brevo SMTP │  │ APP_KEY  │
+                          │ Neon         │           │ Brevo API  │  │ APP_KEY  │
                           │ PostgreSQL   │           │ (magic     │  │ signing  │
                           │ (pgsql)      │           │  links)    │  │ HMAC)    │
                           └──────────────┘           └────────────┘  └──────────┘
@@ -80,7 +80,7 @@ Public-only SPA (the admin SPA views were removed; admin is PHP-rendered).
 | `src/Middleware/CSRF.php` | Per-session token init/verify. |
 | `src/Middleware/CORS.php` | Dev-only CORS (local Vite). |
 | `src/Middleware/SecurityHeaders.php` | Security headers on PHP responses. |
-| `src/Mail/Mailer.php` | Brevo SMTP sender (HTML + plain text). |
+| `src/Mail/Mailer.php` | Brevo HTTP API sender (HTML + plain text); SMTP fallback when no `BREVO_API_KEY`. |
 | `src/Models/ActivityLog.php` | Append-only audit log. |
 | `public/admin/*.php` | Server-rendered admin (login, blogs, categories, edit-blog, profile). |
 | `public/api/index.php` | Single-file REST router with centralized write-gate + DB-backed rate limit. |
@@ -94,7 +94,7 @@ Public-only SPA (the admin SPA views were removed; admin is PHP-rendered).
 | Web server | Nginx (`nginx.conf`) — SPA, PHP-FPM `127.0.0.1:9000`, uploads, gzip, security headers |
 | Runtime config | `php-fpm.conf` (`clear_env = no` so Nginx-injected env vars reach PHP) |
 | Deploy | `render.yaml` (free web service, docker runtime, `healthCheckPath=/api/index.php?action=health`) |
-| Secrets | `APP_KEY` (auto-generated on Render), `MAIL_PASSWORD` (`sync: false` — set manually, never committed) |
+| Secrets | `APP_KEY` (auto-generated on Render), `BREVO_API_KEY` (primary mail), `MAIL_PASSWORD` (SMTP fallback, `sync: false` — set manually, never committed) |
 
 ---
 
@@ -179,7 +179,7 @@ Path routing (`/api/blogs`, `/api/blogs/1`) and query routing (`?action=blogs&id
 - **Multi-stage Docker build**: `npm ci && npm run build` → image copies `frontend/dist` into the PHP-FPM image → nginx serves it.
 - **Neon** PostgreSQL is linked via Render's database integration (`DATABASE_URL` env var).
 - **Migrations auto-run on boot**: `bin/migrate.php` runs before the app starts on every deploy (Render free tier has no `preDeployCommand`).
-- **Env config**: `render.yaml` pins non-secret values (`APP_URL`, SMTP host/port/user, `MAGIC_LINK_TTL=600`); `APP_KEY` is generated and `MAIL_PASSWORD` is set in the dashboard.
+- **Env config**: `render.yaml` pins non-secret values (`APP_URL`, SMTP host/port/user, `MAGIC_LINK_TTL=600`, `ADMIN_NOTIFICATION_EMAILS`, verified `MAIL_FROM_ADDRESS`); `APP_KEY` is generated, and `BREVO_API_KEY` / `MAIL_PASSWORD` are set in the dashboard.
 - **Health check**: `/api/index.php?action=health` → 200 + `database: connected`.
 
 ---

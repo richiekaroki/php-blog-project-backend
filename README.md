@@ -42,7 +42,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 | Frontend | Vue 3, TypeScript, Vite, Tailwind CSS 4, shadcn-vue-style UI |
 | Backend | PHP 8.4, Nginx + PHP-FPM (Docker) |
 | Database | PostgreSQL 17 (Neon, managed) |
-| Email | Brevo SMTP (magic links) |
+| Email | Brevo HTTP API (magic links + admin notifications; SMTP fallback) |
 | Testing | PHPUnit (62 tests / 136 assertions) |
 | Hosting | Render (docker runtime) |
 
@@ -169,7 +169,9 @@ Pushing to `main` triggers an auto-rebuild on Render. Set in the dashboard (neve
 |----------|-------|
 | `DATABASE_URL` | Auto-set by the Neon integration |
 | `APP_KEY` | `base64:<32 random bytes>` (Render can auto-generate) |
-| `MAIL_PASSWORD` | Brevo SMTP key |
+| `BREVO_API_KEY` | Brevo Transactional Email API key (used for all mail; SMTP is blocked on Render's free tier) |
+| `MAIL_FROM_ADDRESS` | A Brevo-**verified** sender (e.g. `karokirichard522@gmail.com`) |
+| `MAIL_PASSWORD` | Brevo SMTP key (fallback only when no API key) |
 | `APP_URL` | `https://<your-service>.onrender.com` (used to build magic-link URLs) |
 
 `render.yaml` pins the rest (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_FROM_*`, `MAGIC_LINK_TTL=600`, `ADMIN_NOTIFICATION_EMAILS`, health check path). `MAIL_FROM_ADDRESS` **must be a sender verified in your Brevo account** — if it isn't, Brevo silently rejects every email while the API still returns 200 (set the app's default to a verified sender). When a brand-new account is auto-provisioned via magic-link sign-in, the app emails every address in `ADMIN_NOTIFICATION_EMAILS` (comma-separated) so you know about new users; leave it empty to disable. `DATABASE_URL` may include `?sslmode=require&channel_binding=require` — both params are now honoured.
