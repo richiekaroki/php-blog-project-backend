@@ -141,9 +141,11 @@ $users = $pdo->query("SELECT id, username, email, role, totp_secret FROM admins 
                 </a>
             </div>
         </aside>
+        <div class="sidebar-backdrop" onclick="closeSidebar()"></div>
 
         <div class="main">
             <header class="header">
+                <button class="menu-btn" onclick="toggleSidebar()" aria-label="Open navigation menu" aria-expanded="false" id="menuBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
                 <h1 class="header-title">Users &amp; Access</h1>
 <div class="header-actions">
                     <span class="header-meta"><?php echo count($users); ?> users</span>
@@ -227,6 +229,23 @@ $users = $pdo->query("SELECT id, username, email, role, totp_secret FROM admins 
             root.classList.toggle('dark');
 localStorage.setItem('theme', root.classList.contains('dark') ? 'dark' : 'light');
         }
+    </script>
+<script>
+        function toggleSidebar() {
+            var layout = document.querySelector('.layout');
+            var btn = document.getElementById('menuBtn');
+            layout.classList.toggle('sidebar-open');
+            if (btn) btn.setAttribute('aria-expanded', layout.classList.contains('sidebar-open'));
+        }
+        function closeSidebar() {
+            var layout = document.querySelector('.layout');
+            layout.classList.remove('sidebar-open');
+            var btn = document.getElementById('menuBtn');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeSidebar();
+        });
     </script>
 </body>
 </html>

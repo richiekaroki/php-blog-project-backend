@@ -6,12 +6,12 @@ const router = createRouter({
     {
       path: '/',
       name: 'landing',
-      component: () => import('@/views/LandingView.vue'),
+      component: () => import('@/features/landing/LandingView.vue'),
     },
     {
       path: '/login',
       name: 'login',
-      component: () => import('@/views/LoginView.vue'),
+      component: () => import('@/features/auth/LoginView.vue'),
     },
     {
       path: '/:pathMatch(.*)*',

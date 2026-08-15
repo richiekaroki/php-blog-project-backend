@@ -177,7 +177,7 @@ p { text-wrap: pretty; }
 }
 .nav-title { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 1.15rem; color: var(--olive); }
 .nav-links { display: flex; gap: 0.75rem; align-items: center; }
-.nav-link { padding: 0.5rem 0.9rem; font-size: 0.9rem; color: var(--muted-fg); }
+.nav-link { display: none; padding: 0.5rem 0.9rem; font-size: 0.9rem; color: var(--muted-fg); }
 .nav-link:hover { color: var(--green); }
 
 /* -------------------------------------------------------------- Buttons */
@@ -212,7 +212,7 @@ p { text-wrap: pretty; }
 /* ----------------------------------------------------------------- Hero */
 .hero {
   position: relative;
-  padding: 5.5rem 1.5rem 4.5rem;
+  padding: 3.5rem 1.25rem 3rem;
   text-align: center;
   overflow: hidden;
 }
@@ -257,16 +257,16 @@ p { text-wrap: pretty; }
 .section { padding: 3.5rem 0; }
 .section-header {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
   margin-bottom: 2rem;
 }
 .section-header h2 { font-size: 1.75rem; font-weight: 600; }
 .section-sub { color: var(--muted-fg); font-size: 0.95rem; margin-top: 0.2rem; }
 
 /* ---------------------------------------------------------- Blog grid */
-.blog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.75rem; }
+.blog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 1.75rem; }
 .blog-card {
   display: flex;
   flex-direction: column;
@@ -332,7 +332,7 @@ p { text-wrap: pretty; }
   border-radius: var(--radius);
   margin-bottom: 2.5rem;
 }
-.filter-form { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.filter-form { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; }
 .filter-input {
   flex: 1;
   min-width: 200px;
@@ -388,7 +388,7 @@ p { text-wrap: pretty; }
 .empty-state p { color: var(--muted-fg); margin-bottom: 1.5rem; }
 
 /* ---------------------------------------------------------- Pagination */
-.pagination { display: flex; justify-content: center; gap: 0.5rem; margin-top: 3rem; }
+.pagination { display: flex; justify-content: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 3rem; }
 .page-link {
   padding: 0.5rem 1rem;
   border: 1px solid var(--border);
@@ -407,7 +407,7 @@ p { text-wrap: pretty; }
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
-.about-inner { max-width: 720px; margin: 0 auto; text-align: center; padding: 4.5rem 1.5rem; }
+.about-inner { max-width: 720px; margin: 0 auto; text-align: center; padding: 3rem 1.25rem; }
 .about blockquote {
   font-family: 'Fraunces', Georgia, serif;
   font-size: clamp(1.4rem, 3vw, 1.8rem);
@@ -442,7 +442,7 @@ p { text-wrap: pretty; }
 .post-hero {
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, color-mix(in srgb, var(--cream) 30%, transparent), transparent);
-  padding: 4rem 1.5rem 3rem;
+  padding: 2.75rem 1.25rem 2.25rem;
 }
 .post-hero .eyebrow { margin-bottom: 1rem; display: inline-block; }
 .post-title { font-size: clamp(2rem, 4.5vw, 3rem); font-weight: 600; line-height: 1.15; max-width: 800px; }
@@ -455,7 +455,7 @@ p { text-wrap: pretty; }
   font-size: 0.875rem;
 }
 .post-meta .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--border); }
-.post-content { max-width: 700px; margin: 0 auto; padding: 3.5rem 1.5rem 4rem; font-size: 1.08rem; line-height: 1.85; color: var(--fg); }
+.post-content { max-width: 700px; margin: 0 auto; padding: 2.5rem 1.25rem 3.25rem; font-size: 1.05rem; line-height: 1.85; color: var(--fg); }
 .post-content h2 { font-size: 1.6rem; margin: 2.5rem 0 1rem; }
 .post-content h3 { font-size: 1.25rem; margin: 2rem 0 0.75rem; }
 .post-content p { margin-bottom: 1.25rem; }
@@ -542,7 +542,7 @@ p { text-wrap: pretty; }
   margin: 1.5rem 0;
 }
 .post-content pre code { background: none; padding: 0; color: inherit; }
-.post-nav { max-width: 700px; margin: 0 auto; padding: 0 1.5rem 3.5rem; display: flex; justify-content: space-between; gap: 1rem; }
+.post-nav { max-width: 700px; margin: 0 auto; padding: 0 1.25rem 2.75rem; display: flex; flex-direction: column; gap: 0.75rem; }
 .post-nav a { font-size: 0.9rem; color: var(--muted-fg); }
 .post-nav a:hover { color: var(--green); }
 
@@ -580,10 +580,10 @@ p { text-wrap: pretty; }
 .post-layout {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 0 1.5rem 4rem;
+  padding: 0 1.25rem 3.5rem;
   display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 3rem;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
 }
 .sidebar-card {
   background: var(--card);
@@ -664,7 +664,7 @@ p { text-wrap: pretty; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
-  padding: 2.25rem;
+  padding: 1.75rem;
 }
 .auth-logo {
   width: 46px; height: 46px;
@@ -737,11 +737,20 @@ p { text-wrap: pretty; }
 .footer-links a:hover { color: var(--green); }
 
 /* --------------------------------------------------------- Responsive */
-@media (max-width: 640px) {
-  .blog-grid { grid-template-columns: 1fr; }
-  .filter-form { flex-direction: column; }
-  .filter-input, .filter-select, .filter-btn, .filter-clear { width: 100%; }
-  .nav-link { display: none; }
-  .post-nav { flex-direction: column; }
-  .post-layout { grid-template-columns: 1fr; gap: 1.5rem; }
+/* Tablet ≥ 640px — promote from stacked single-column to comfortable rows */
+@media (min-width: 640px) {
+  .hero { padding: 5.5rem 1.5rem 4.5rem; }
+  .section-header { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 1rem; }
+  .filter-form { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .nav-link { display: inline-block; }
+  .post-hero { padding: 4rem 1.5rem 3rem; }
+  .post-content { padding: 3.5rem 1.5rem 4rem; font-size: 1.08rem; }
+  .about-inner { padding: 4.5rem 1.5rem; }
+  .auth-card { padding: 2.25rem; }
+  .post-nav { flex-direction: row; justify-content: space-between; gap: 1rem; padding: 0 1.5rem 3.5rem; }
+}
+
+/* Desktop ≥ 900px — restore the reading side-rail beside the article */
+@media (min-width: 900px) {
+  .post-layout { grid-template-columns: 1fr 300px; gap: 3rem; padding: 0 1.5rem 4rem; }
 }
