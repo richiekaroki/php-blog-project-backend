@@ -239,7 +239,8 @@ Migrations live in `sql/migrations/` and are applied in filename order by `bin/m
 
 | File | Purpose |
 |------|---------|
-| `sql/ruru_schema.sql` | Base schema: `admins`, `roles`, `user_roles`, `blogs`, `activity_log` (applied manually, not via the runner) |
+| `sql/ruru_schema.sql` | Original hand-written schema (reference only — never executed by the runner) |
+| `sql/migrations/2026_08_12_base_schema.sql` | Base schema: `admins`, `categories`, `blogs`, `activity_log` (so fresh databases boot) |
 | `sql/migrations/2026_add_admin_email.sql` | Adds `admins.email` |
 | `sql/migrations/2026_08_13_create_invitations.sql` | `invitations` table (legacy sign-up requests; kept for compatibility) |
 | `sql/migrations/2026_08_13_magic_link_security.sql` | `magic_link_uses`, `auth_sessions`, `admins.totp_secret` |
@@ -257,6 +258,9 @@ Migrations live in `sql/migrations/` and are applied in filename order by `bin/m
 | `APP_KEY` | ✅ | — | Signs magic links (32 random bytes, `base64:` prefix). |
 | `DATABASE_URL` | Render | — | Auto-set by Neon integration. |
 | `DB_*` | local | — | Local pgsql config (`DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`). |
+| `DB_SSLMODE` | — | `require` | SSL mode for direct `DB_*` connections (`prefer` for local Postgres). |
+| `APP_ENV` | — | `local` | Runtime environment. Must be non-`local` in production — gates the `DEV_AUTOLOGIN` bypass. |
+| `DEV_AUTOLOGIN` | — | — | Local dev only: `true` + `APP_ENV=local` silently signs into the admin area without magic links. Never set in production. |
 | `APP_URL` | — | `http://127.0.0.1` | Base URL used to build magic-link URLs (must be the public origin). |
 | `MAGIC_LINK_TTL` | — | `600` | Link lifetime in seconds. |
 | `MAIL_HOST/PORT/USERNAME/PASSWORD` | fallback | Brevo defaults | SMTP creds (fallback only when no `BREVO_API_KEY`; SMTP ports are blocked on Render's free tier). Never commit `MAIL_PASSWORD`. |
@@ -269,7 +273,7 @@ Migrations live in `sql/migrations/` and are applied in filename order by `bin/m
 
 ## 10. Testing
 
-`tests/BlogTest.php` — **62 tests / 136 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, DB-backed IP rate limiting (block/isolate/forwarded-IP), email-keyed throttles, the auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI, the invitation table (lifecycle, rejection, uniqueness), and auto-provisioning (`Invitation::provision`): new-account creation, existing-account reuse without overwriting the role, and unique username derivation.
+`tests/BlogTest.php` — **68 tests / 160 assertions** (3 skipped: API tests needing a live server). Coverage includes: table existence & columns, SQL-injection-prepared statements, escaping, CSRF token shape/uniqueness, session cookie hardening, image upload validation, blog/category CRUD lifecycle, pagination math, DB-backed IP rate limiting (block/isolate/forwarded-IP), email-keyed throttles, the auth security suite: `magic_link_uses` exists + unique constraint, `auth_sessions` + revocation, single-use consume, tampered-token rejection, `totp_secret` column, RFC 6238 vectors, verify accept/reject, provisioning URI, the invitation table (lifecycle, rejection, uniqueness), and auto-provisioning (`Invitation::provision`): new-account creation, existing-account reuse without overwriting the role, and unique username derivation.
 
 ```bash
 vendor/bin/phpunit --testdox

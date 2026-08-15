@@ -1,7 +1,7 @@
 # WAM Blog
 
 [![CI](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml/badge.svg)](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml)
-[![Tests](https://img.shields.io/badge/tests-62%20passed-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-68%20passed-brightgreen)](#testing)
 [![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php)](#)
 [![Vue](https://img.shields.io/badge/Vue-3-42b883?logo=vue.js)](#)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql)](#)
@@ -43,7 +43,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 | Backend | PHP 8.4, Nginx + PHP-FPM (Docker) |
 | Database | PostgreSQL 17 (Neon, managed) |
 | Email | Brevo HTTP API (magic links + admin notifications; SMTP fallback) |
-| Testing | PHPUnit (62 tests / 136 assertions) |
+| Testing | PHPUnit (68 tests / 160 assertions) |
 | Hosting | Render (docker runtime) |
 
 ---
@@ -56,10 +56,9 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 │       ├── api/           # Axios client (same-origin)
 │       ├── components/ui/ # Button, Card*, Input, Toast
 │       ├── composables/   # useToast, useDarkMode
-│       ├── features/      # landing GetStartedModal
-│       ├── views/         # LandingView, LoginView
+│       ├── features/      # landing/ (LandingView, GetStartedModal), auth/ (LoginView)
 │       └── router/        # /, /login, catch-all
-├── src/                   # PHP: Auth, Middleware, Mail, Models, Database
+├── src/                   # PHP: Auth, Middleware, Mail, Models, Database, Support
 │   ├── Auth/              # MagicLink (HMAC tokens), Totp (RFC 6238)
 │   └── Middleware/        # Auth, CSRF, CORS, SecurityHeaders
 ├── public/
@@ -68,7 +67,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 │   ├── index.php / post.php
 │   └── uploads/           # blog images
 ├── sql/                   # schema + migrations (Neon)
-├── tests/                 # PHPUnit (62 tests)
+├── tests/                 # PHPUnit (68 tests)
 ├── Dockerfile / nginx.conf / render.yaml / php-fpm.conf
 └── .env.example
 ```
@@ -157,7 +156,7 @@ Verify: `SELECT count(*) FROM auth_sessions;` and `SELECT count(*) FROM login_ra
 vendor/bin/phpunit --testdox
 ```
 
-62 tests / 136 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, the auth-security suite (single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation), the invitations table (lifecycle, rejection, uniqueness), auto-provisioning (account creation, existing-account reuse, unique usernames), and per-email/per-IP magic-link throttles.
+68 tests / 160 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, the auth-security suite (single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation), the invitations table (lifecycle, rejection, uniqueness), auto-provisioning (account creation, existing-account reuse, unique usernames), and per-email/per-IP magic-link throttles.
 
 ---
 

@@ -148,7 +148,7 @@ login_rate_limits ( bucket PK-part, ip_hash PK-part,     -- IP rate limiting
 - `login_rate_limits` (migration `2026_08_14_login_rate_limits`) stores attempt counters keyed on `sha256(bucket|ip)` so cookies can't reset them; IPs are not stored raw.
 ### 5.3 Migrations
 
-Applied in order by `bin/migrate.php` (auto-run on deploy and via `composer migrate`): `ruru_schema.sql` (base schema, applied manually) → `2026_add_admin_email.sql` → `2026_08_13_create_invitations.sql` → `2026_08_13_magic_link_security.sql` → `2026_08_14_drop_admins_password.sql` → `2026_08_14_login_rate_limits.sql`. All new objects are idempotent (`IF NOT EXISTS`), safe to re-run.
+Applied in order by `bin/migrate.php` (auto-run on deploy and via `composer migrate`): `2026_08_12_base_schema.sql` (base tables: `admins`, `categories`, `blogs`, `activity_log` — so fresh databases boot) → `2026_add_admin_email.sql` → `2026_08_13_create_invitations.sql` → `2026_08_13_magic_link_security.sql` → `2026_08_14_drop_admins_password.sql` → `2026_08_14_login_rate_limits.sql`. All new objects are idempotent (`IF NOT EXISTS`), safe to re-run. `sql/ruru_schema.sql` is the original hand-written schema, kept as reference only.
 
 ---
 

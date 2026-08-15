@@ -3,6 +3,7 @@
 namespace App\Middleware;
 
 use App\Database\Connection;
+use App\Support\Env;
 
 class Auth
 {
@@ -31,6 +32,7 @@ class Auth
     public static function check(): void
     {
         self::startSession();
+        self::maybeDevAutoLogin();
 
         if (!isset($_SESSION['admin'])) {
             self::redirectToLogin();
@@ -184,6 +186,48 @@ class Auth
     public static function getRole(): ?string
     {
         return $_SESSION['user_role'] ?? null;
+    }
+
+    /**
+     * Development-only convenience: silently sign in as a local admin so the
+     * admin pages can be exercised in a browser without going through the
+     * magic-link email flow. Strictly gated on APP_ENV=local AND an explicit
+     * DEV_AUTOLOGIN=true opt-in, so a production deploy can never hit it even
+     * if APP_ENV is misconfigured. The admin account (default dev@local.test,
+     * role admin) is created on first use.
+     */
+    private static function maybeDevAutoLogin(): void
+    {
+        if (Env::get('APP_ENV') !== 'local' || Env::get('DEV_AUTOLOGIN') !== 'true' || isset($_SESSION['admin'])) {
+            return;
+        }
+
+        try {
+            $pdo = Connection::getInstance();
+            $email = Env::get('DEV_ADMIN_EMAIL', 'dev@local.test');
+
+            $stmt = $pdo->prepare("SELECT id, username, role FROM admins WHERE LOWER(email) = ? LIMIT 1");
+            $stmt->execute([$email]);
+            $admin = $stmt->fetch();
+
+            if (!$admin) {
+                $stmt = $pdo->prepare("SELECT id, username, role FROM admins WHERE username = 'dev' LIMIT 1");
+                $stmt->execute();
+                $admin = $stmt->fetch();
+            }
+
+            if (!$admin) {
+                $ins = $pdo->prepare("INSERT INTO admins (username, email, role) VALUES ('dev', ?, 'admin')");
+                $ins->execute([$email]);
+                $admin = ['username' => 'dev', 'role' => 'admin'];
+            }
+
+            $_SESSION['admin'] = $admin['username'];
+            self::registerSession($admin['username']);
+            $_SESSION['user_role'] = $admin['role'];
+        } catch (\Throwable $e) {
+            error_log('Dev auto-login failed: ' . $e->getMessage());
+        }
     }
 
     public static function currentUsername(): ?string
