@@ -42,6 +42,9 @@ herd-*
 # Screenshots
 screencapture-*.png
 
+# Reference screenshots (local only, never pushed)
+/screenshots/
+
 # Playwright browser test artifacts
 .playwright-mcp/
 
