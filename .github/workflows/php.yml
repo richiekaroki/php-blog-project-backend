@@ -65,6 +65,7 @@ jobs:
           DB_DATABASE: mizzle_backend
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
+          DB_SSLMODE: prefer
         run: vendor/bin/phpunit tests/
 
       - name: Code Sniff (PHP CodeSniffer)
