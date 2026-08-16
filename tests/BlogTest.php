@@ -29,11 +29,11 @@ class BlogTest extends TestCase
             }
         }
 
-        $host = $env['DB_HOST'] ?? '127.0.0.1';
-        $port = $env['DB_PORT'] ?? '5432';
-        $dbname = $env['DB_DATABASE'] ?? 'mizzle_backend';
-        $username = $env['DB_USERNAME'] ?? 'postgres';
-        $password = $env['DB_PASSWORD'] ?? '';
+        $host = getenv('DB_HOST') ?: ($env['DB_HOST'] ?? '127.0.0.1');
+        $port = getenv('DB_PORT') ?: ($env['DB_PORT'] ?? '5432');
+        $dbname = getenv('DB_DATABASE') ?: ($env['DB_DATABASE'] ?? 'mizzle_backend');
+        $username = getenv('DB_USERNAME') ?: ($env['DB_USERNAME'] ?? 'postgres');
+        $password = getenv('DB_PASSWORD') ?: ($env['DB_PASSWORD'] ?? '');
 
         $dsn = "pgsql:host=$host;port=$port;dbname=$dbname";
 
@@ -956,5 +956,108 @@ class BlogTest extends TestCase
         $this->assertStringContainsString('emphasised', $text);
         $this->assertStringContainsString('link', $text);
         $this->assertStringNotContainsString('https://example.com', $text);
+    }
+
+    // ==========================================
+    // COMMENTS FEATURE
+    // ==========================================
+
+    public function testCommentsTableExists()
+    {
+        $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM comments");
+        $row = $stmt->fetch();
+        $this->assertGreaterThanOrEqual(0, $row['count']);
+    }
+
+    public function testCommentsTableHasRequiredColumns()
+    {
+        $stmt = $this->pdo->query("SELECT column_name FROM information_schema.columns WHERE table_name = 'comments'");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertContains('blog_id', $columns);
+        $this->assertContains('author_name', $columns);
+        $this->assertContains('author_email', $columns);
+        $this->assertContains('content', $columns);
+        $this->assertContains('status', $columns);
+        $this->assertContains('user_ip', $columns);
+        $this->assertContains('created_at', $columns);
+    }
+
+    public function testSubscribersTableExists()
+    {
+        $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM subscribers");
+        $row = $stmt->fetch();
+        $this->assertGreaterThanOrEqual(0, $row['count']);
+    }
+
+    public function testSubscribersTableHasRequiredColumns()
+    {
+        $stmt = $this->pdo->query("SELECT column_name FROM information_schema.columns WHERE table_name = 'subscribers'");
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $this->assertContains('email', $columns);
+        $this->assertContains('token', $columns);
+        $this->assertContains('created_at', $columns);
+    }
+
+    public function testCommentWorkflowPendingApproveThenDelete()
+    {
+        $this->pdo->prepare("INSERT INTO blogs (title, content, status) VALUES ('Comment Workflow Post', 'body', 'published')")->execute();
+        $blogId = (int)$this->pdo->lastInsertId();
+
+        $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
+        $commentId = \App\Models\Comment::create($blogId, 'Test Reader', 'reader@example.com', 'A friendly comment.');
+        $this->assertNotNull($commentId);
+
+        $stmt = $this->pdo->prepare("SELECT status FROM comments WHERE id = ?");
+        $stmt->execute([$commentId]);
+        $this->assertEquals('pending', $stmt->fetch()['status']);
+
+        $this->assertTrue(\App\Models\Comment::approve($commentId));
+        $this->assertCount(1, \App\Models\Comment::approvedFor($blogId));
+
+        $this->assertTrue(\App\Models\Comment::delete($commentId));
+        $this->assertCount(0, \App\Models\Comment::approvedFor($blogId));
+
+        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$blogId]);
+    }
+
+    public function testCommentRejectsInvalidInput()
+    {
+        $this->pdo->prepare("INSERT INTO blogs (title, content, status) VALUES ('Comment Invalid Post', 'body', 'published')")->execute();
+        $blogId = (int)$this->pdo->lastInsertId();
+
+        $this->assertNull(\App\Models\Comment::create($blogId, '', '', ''));
+        $this->assertNull(\App\Models\Comment::create($blogId, 'Name', 'not-an-email', 'ok'));
+
+        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$blogId]);
+    }
+
+    // ==========================================
+    // NEWSLETTER FEATURE
+    // ==========================================
+
+    public function testSubscriberWorkflowSubscribeDedupeThenRemove()
+    {
+        $added = \App\Models\Subscriber::subscribe('newsletter-test@example.com');
+        $this->assertSame('added', $added['status']);
+
+        $dup = \App\Models\Subscriber::subscribe('newsletter-test@example.com');
+        $this->assertSame('exists', $dup['status']);
+
+        $stmt = $this->pdo->prepare("SELECT token FROM subscribers WHERE email = ?");
+        $stmt->execute(['newsletter-test@example.com']);
+        $token = $stmt->fetchColumn();
+        $this->assertNotEmpty($token);
+
+        $this->assertTrue(\App\Models\Subscriber::removeByToken((string)$token));
+
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM subscribers WHERE email = ?");
+        $stmt->execute(['newsletter-test@example.com']);
+        $this->assertSame(0, (int)$stmt->fetchColumn());
+    }
+
+    public function testSubscriberRejectsInvalidEmail()
+    {
+        $this->assertNull(\App\Models\Subscriber::subscribe('not-an-email'));
+        $this->assertNull(\App\Models\Subscriber::subscribe(''));
     }
 }

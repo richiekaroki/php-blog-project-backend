@@ -803,3 +803,130 @@ tr:last-child td { border-bottom: none; }
   .form-row { grid-template-columns: 1fr 300px; }
   .info-grid { grid-template-columns: 150px 1fr; gap: 0.7rem 1.5rem; }
 }
+
+/* ------------------------------------------------------- Feature admin UI */
+.nav-badge {
+  margin-left: auto;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 0.65rem;
+  background: var(--orange);
+  color: var(--primary-fg);
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-tabs { display: flex; gap: 0.25rem; background: var(--muted); border-radius: 0.6rem; padding: 0.25rem; }
+.filter-tab {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-radius: 0.45rem;
+  color: var(--muted-fg);
+  text-decoration: none;
+  transition: background-color 0.15s, color 0.15s;
+}
+.filter-tab:hover { color: var(--green); }
+.filter-tab.active { background: var(--card); color: var(--fg); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12); }
+
+.comment-list { display: flex; flex-direction: column; }
+.comment-card {
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.comment-card:last-child { border-bottom: none; }
+.comment-card.comment-pending { background: color-mix(in srgb, var(--orange) 5%, transparent); }
+.comment-card-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.3rem; }
+.comment-card-body {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0.5rem 0;
+  padding: 0.75rem 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  white-space: pre-line;
+}
+.comment-card-actions { display: flex; gap: 0.5rem; }
+
+.bar-list { display: flex; flex-direction: column; gap: 0.85rem; }
+.bar-row { display: grid; grid-template-columns: 1.5rem 1fr 2fr; align-items: center; gap: 0.75rem; }
+.bar-rank {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--muted-fg);
+  text-align: center;
+}
+.bar-track {
+  height: 1.5rem;
+  background: var(--muted);
+  border-radius: 0.4rem;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), color-mix(in srgb, var(--green) 55%, var(--orange)));
+  border-radius: 0.4rem;
+}
+.bar-label { font-size: 0.92rem; line-height: 1.35; }
+.bar-label a { color: var(--olive); font-weight: 600; text-decoration: none; }
+.bar-label a:hover { color: var(--green); }
+.bar-meta { display: block; font-size: 0.78rem; color: var(--muted-fg); }
+
+/* Preview pane (editor live preview) */
+.post-preview-body {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
+  font-size: 1.06rem;
+  line-height: 1.75;
+  color: var(--fg);
+}
+.post-preview-body h1, .post-preview-body h2, .post-preview-body h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  color: var(--olive);
+  margin: 1.5em 0 0.5em;
+  line-height: 1.25;
+}
+.post-preview-body h1 { font-size: 2rem; }
+.post-preview-body h2 { font-size: 1.6rem; }
+.post-preview-body h3 { font-size: 1.25rem; }
+.post-preview-body p { margin: 1em 0; }
+.post-preview-body blockquote {
+  margin: 1.5em 0;
+  padding: 0.25em 1.25em;
+  border-left: 3px solid var(--green);
+  color: var(--muted-fg);
+  font-style: italic;
+}
+.post-preview-body code {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.88em;
+  background: var(--muted);
+  padding: 0.15em 0.35em;
+  border-radius: 0.3rem;
+}
+.post-preview-body pre {
+  background: var(--olive);
+  color: var(--cream);
+  padding: 1rem 1.25rem;
+  border-radius: 0.6rem;
+  overflow-x: auto;
+}
+.post-preview-body pre code { background: transparent; color: inherit; padding: 0; }
+.post-preview-body a { color: var(--green); text-decoration: underline; }
+.post-preview-body ul, .post-preview-body ol { margin: 1em 0; padding-left: 1.5em; }
+.post-preview-body li { margin: 0.35em 0; }
+
+.live-preview {
+  width: 100%;
+  height: 480px;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--bg);
+}

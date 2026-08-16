@@ -5,10 +5,15 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 require_once __DIR__ . '/inc/post-format.php';
 
 use App\Database\Connection;
+use App\Middleware\CSRF;
 use App\Middleware\SecurityHeaders;
 
 $pdo = Connection::getInstance();
 SecurityHeaders::send();
+CSRF::init();
+
+// Banner state from newsletter subscribe redirects
+$newsFlash = isset($_GET['subscribed']) ? 'subscribed' : (isset($_GET['subscribe_error']) ? 'error' : null);
 
 // Canonical URL so search engines consolidate /index.php with the root (/)
 $canonical = (($_SERVER['HTTPS'] ?? 'off') !== 'off' ? 'https' : 'http') . '://'
@@ -101,6 +106,12 @@ $categories = $catStmt->fetchAll();
             </div>
         </div>
     </nav>
+
+    <?php if ($newsFlash === 'subscribed'): ?>
+        <div class="banner banner-success" style="max-width: 1100px; margin: 1.25rem auto 0;">Thanks — you are on the list. We will email you when a new story goes live.</div>
+    <?php elseif ($newsFlash === 'error'): ?>
+        <div class="banner banner-error" style="max-width: 1100px; margin: 1.25rem auto 0;">That email could not be subscribed. Please check the address and try again.</div>
+    <?php endif; ?>
 
     <!-- Hero -->
     <section class="hero">
@@ -232,6 +243,22 @@ $categories = $catStmt->fetchAll();
         </div>
     </section>
     <?php endif; ?>
+
+    <!-- Newsletter -->
+    <section class="about" style="background: color-mix(in srgb, var(--cream) 30%, transparent);">
+        <div class="about-inner" style="max-width: 640px; text-align: center;">
+            <span class="eyebrow" style="display: inline-block; margin-bottom: 1rem;">The WAM Newsletter</span>
+            <h2 style="font-size: 1.75rem; margin-bottom: 0.75rem;">Stories, straight to your inbox</h2>
+            <p style="color: var(--muted-fg); margin-bottom: 1.5rem;">One email per new post — no spam, no noise. Unsubscribe anytime with a single click.</p>
+            <form method="POST" action="subscribe.php" class="newsletter-form" style="max-width: 420px; margin: 0 auto;">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="hidden" name="back" value="index.php">
+                <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
+                <input type="email" name="email" placeholder="you@example.com" required style="margin-bottom: 0.75rem;">
+                <button type="submit" class="btn-primary" style="width: 100%;">Subscribe</button>
+            </form>
+        </div>
+    </section>
 
     <!-- Footer -->
     <footer class="footer">

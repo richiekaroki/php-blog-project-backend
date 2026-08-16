@@ -5,15 +5,34 @@ import { useDarkMode } from '@/composables/useDarkMode'
 import type { Blog, Category } from '@/types'
 import Button from '@/components/ui/Button.vue'
 import GetStartedModal from '@/features/landing/GetStartedModal.vue'
-import { ArrowRight, BookOpen, Sun, Moon, Feather, CalendarDays, Clock } from 'lucide-vue-next'
+import { ArrowRight, Sun, Moon, Feather, CalendarDays, Clock } from 'lucide-vue-next'
 
 const blogs = ref<Blog[]>([])
 const categories = ref<Category[]>([])
 const loading = ref(true)
 const showGetStarted = ref(false)
+const subEmail = ref('')
+const subState = ref<'idle' | 'success' | 'error'>('idle')
+const subBusy = ref(false)
 const { isDark, toggle } = useDarkMode()
 
-const liveBlogBase = import.meta.env.VITE_BLOG_BASE || (import.meta.env.DEV ? 'http://php-blog-backend-project.test' : '')
+async function subscribeNewsletter() {
+  if (subBusy.value) return
+  subBusy.value = true
+  subState.value = 'idle'
+  try {
+    await api.post('/api/index.php?action=newsletter', { email: subEmail.value })
+    subState.value = 'success'
+    subEmail.value = ''
+  } catch {
+    subState.value = 'error'
+  } finally {
+    subBusy.value = false
+  }
+}
+
+const liveBlogBase =
+  import.meta.env.VITE_BLOG_BASE || (import.meta.env.DEV ? 'http://php-blog-backend-project.test' : '')
 
 function formatDate(iso?: string): string {
   if (!iso) return ''
@@ -68,17 +87,17 @@ onMounted(async () => {
         </a>
         <div class="flex items-center gap-2 sm:gap-3">
           <button
-            @click="toggle"
             class="p-2 text-muted-foreground hover:text-forest-green hover:bg-muted/70 rounded-md transition-colors"
             :title="isDark ? 'Light mode' : 'Dark mode'"
             aria-label="Toggle theme"
+            @click="toggle"
           >
             <Sun v-if="isDark" class="h-4 w-4" />
             <Moon v-else class="h-4 w-4" />
           </button>
           <button
-            @click="showGetStarted = true"
             class="hidden sm:inline-flex px-3 py-2 text-sm font-medium text-muted-foreground hover:text-forest-green transition-colors cursor-pointer"
+            @click="showGetStarted = true"
           >
             Join the journal
           </button>
@@ -99,7 +118,9 @@ onMounted(async () => {
           <Feather class="h-3.5 w-3.5 text-warm-orange" />
           Stories worth your time
         </p>
-        <h1 class="font-display text-[2.6rem] leading-[1.08] sm:text-6xl font-semibold tracking-tight text-dark-olive mb-6">
+        <h1
+          class="font-display text-[2.6rem] leading-[1.08] sm:text-6xl font-semibold tracking-tight text-dark-olive mb-6"
+        >
           A quiet place for
           <span class="relative inline-block">
             <em class="italic text-forest-green">stories</em>
@@ -121,8 +142,8 @@ onMounted(async () => {
           worth your time.
         </h1>
         <p class="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-          Carefully written articles on the craft of writing, building, and the ideas we keep coming back to.
-          No noise, no clickbait — just reading worth slowing down for.
+          Carefully written articles on the craft of writing, building, and the ideas we keep coming back to. No noise,
+          no clickbait — just reading worth slowing down for.
         </p>
         <div class="flex items-center justify-center gap-4 flex-wrap">
           <a href="#latest">
@@ -179,7 +200,9 @@ onMounted(async () => {
         <div v-else-if="!blogs.length" class="text-center py-16 px-6 bg-card border border-border/60 rounded-xl">
           <span class="fleuron mb-6" aria-hidden="true"><span class="glyph">&#10086;</span></span>
           <h3 class="font-display text-xl font-semibold text-dark-olive mb-2">The journal is still being written</h3>
-          <p class="text-muted-foreground max-w-md mx-auto mb-6">Stories are taking shape behind the scenes. Come back soon — or sign in and start writing your own.</p>
+          <p class="text-muted-foreground max-w-md mx-auto mb-6">
+            Stories are taking shape behind the scenes. Come back soon — or sign in and start writing your own.
+          </p>
           <a
             :href="`${liveBlogBase}/signup.php`"
             target="_blank"
@@ -206,9 +229,11 @@ onMounted(async () => {
                 :src="featured()!.image"
                 :alt="featured()!.title"
                 class="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
-              >
+              />
               <div v-else class="w-full h-full flex items-center justify-center bg-secondary/60">
-                <span class="font-display italic text-[4.5rem] leading-none text-forest-green/40 select-none">{{ featured()!.title.charAt(0) }}</span>
+                <span class="font-display italic text-[4.5rem] leading-none text-forest-green/40 select-none">{{
+                  featured()!.title.charAt(0)
+                }}</span>
               </div>
             </div>
             <div class="p-7 sm:p-9 flex flex-col justify-center">
@@ -220,13 +245,17 @@ onMounted(async () => {
                   <CalendarDays class="h-3.5 w-3.5" /> {{ formatDate(featured()!.created_at) }}
                 </span>
               </p>
-              <h3 class="font-display text-2xl sm:text-3xl font-semibold leading-snug text-dark-olive group-hover:text-forest-green transition-colors mb-4">
+              <h3
+                class="font-display text-2xl sm:text-3xl font-semibold leading-snug text-dark-olive group-hover:text-forest-green transition-colors mb-4"
+              >
                 {{ featured()!.title }}
               </h3>
               <p class="text-muted-foreground leading-relaxed mb-6">
                 {{ excerpt(featured()!.excerpt ?? featured()!.content) }}
               </p>
-              <span class="inline-flex items-center gap-1.5 text-sm font-medium text-warm-orange group-hover:gap-2.5 transition-all">
+              <span
+                class="inline-flex items-center gap-1.5 text-sm font-medium text-warm-orange group-hover:gap-2.5 transition-all"
+              >
                 Read the story
                 <ArrowRight class="h-4 w-4" />
               </span>
@@ -249,27 +278,41 @@ onMounted(async () => {
                   :src="blog.image"
                   :alt="blog.title"
                   class="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-700"
-                >
+                />
                 <div v-else class="w-full h-full flex items-center justify-center bg-secondary/60">
-                  <span class="font-display italic text-[3.5rem] leading-none text-forest-green/40 select-none">{{ blog.title.charAt(0) }}</span>
+                  <span class="font-display italic text-[3.5rem] leading-none text-forest-green/40 select-none">{{
+                    blog.title.charAt(0)
+                  }}</span>
                 </div>
               </div>
               <div class="border-t border-border/70 pt-4">
                 <p class="eyebrow mb-2 flex items-center gap-2.5">
                   <span v-if="blog.category_name" class="text-forest-green">{{ blog.category_name }}</span>
-                  <span v-if="blog.category_name && formatDate(blog.created_at)" class="text-border/70" aria-hidden="true">·</span>
+                  <span
+                    v-if="blog.category_name && formatDate(blog.created_at)"
+                    class="text-border/70"
+                    aria-hidden="true"
+                    >·</span
+                  >
                   <span v-if="formatDate(blog.created_at)">{{ formatDate(blog.created_at) }}</span>
                 </p>
-                <h3 class="font-display text-xl font-semibold leading-snug text-dark-olive group-hover:text-forest-green transition-colors mb-2">
+                <h3
+                  class="font-display text-xl font-semibold leading-snug text-dark-olive group-hover:text-forest-green transition-colors mb-2"
+                >
                   {{ blog.title }}
                 </h3>
                 <p class="text-muted-foreground text-[0.95rem] leading-relaxed mb-3">
                   {{ excerpt(blog.excerpt ?? blog.content, 140) }}
                 </p>
-                <span class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground group-hover:text-warm-orange transition-colors">
+                <span
+                  class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground group-hover:text-warm-orange transition-colors"
+                >
                   <Clock class="h-3.5 w-3.5" />
                   {{ readingTime(blog) }}
-                  <span v-if="(blog.views ?? 0) > 0" class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground group-hover:text-warm-orange transition-colors">
+                  <span
+                    v-if="(blog.views ?? 0) > 0"
+                    class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground group-hover:text-warm-orange transition-colors"
+                  >
                     <span class="text-border/70" aria-hidden="true">·</span>
                     {{ Number(blog.views).toLocaleString() }} reads
                   </span>
@@ -285,7 +328,9 @@ onMounted(async () => {
     <section v-if="categories.length" class="py-16 sm:py-20 px-5 sm:px-6 bg-secondary/40 border-y border-border/60">
       <div class="max-w-4xl mx-auto">
         <div class="flex flex-col gap-1.5 mb-6">
-          <h2 class="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-dark-olive">Explore the journal</h2>
+          <h2 class="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-dark-olive">
+            Explore the journal
+          </h2>
         </div>
         <p class="text-muted-foreground text-[0.95rem] leading-relaxed mb-8 max-w-xl">
           Wander by subject — every section is filed and kept by hand, one story at a time.
@@ -316,33 +361,68 @@ onMounted(async () => {
           <span class="fleuron" aria-hidden="true"><span class="glyph">&#10086;</span></span>
         </div>
         <blockquote class="font-display text-2xl sm:text-[2rem] leading-snug font-medium text-dark-olive">
-          “We started WAM because the internet forgot how to slow down. Every piece here is
-          written, built, edited, and published by hand — for readers who still believe the best ideas
-          deserve more than a passing glance.”
+          “We started WAM because the internet forgot how to slow down. Every piece here is written, built, edited, and
+          published by hand — for readers who still believe the best ideas deserve more than a passing glance.”
         </blockquote>
         <p class="text-muted-foreground mt-8 text-[0.95rem] leading-relaxed max-w-xl mx-auto">
-          That means thoughtful essays, careful software, and a few strong opinions — and not a single popup.
-          If that sounds like your kind of reading, you're already in the right place.
+          That means thoughtful essays, careful software, and a few strong opinions — and not a single popup. If that
+          sounds like your kind of reading, you're already in the right place.
+        </p>
+      </div>
+    </section>
+
+    <!-- Newsletter -->
+    <section class="px-5 sm:px-6 pb-6">
+      <div
+        class="max-w-3xl mx-auto text-center border border-border/70 rounded-xl bg-secondary/40 px-6 sm:px-12 py-12 sm:py-14"
+      >
+        <h2 class="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-dark-olive mb-3">
+          The WAM Newsletter
+        </h2>
+        <p class="text-muted-foreground max-w-lg mx-auto mb-8 leading-relaxed">
+          One email per new story — no spam, no noise. Unsubscribe anytime with a single click.
+        </p>
+        <form class="max-w-md mx-auto flex flex-col sm:flex-row gap-3" @submit.prevent="subscribeNewsletter">
+          <input
+            v-model="subEmail"
+            type="email"
+            required
+            placeholder="you@example.com"
+            aria-label="Email address"
+            class="flex-1 h-11 px-4 rounded-md border border-border/70 bg-background text-foreground text-sm focus:outline-none focus:border-forest-green"
+          />
+          <Button
+            type="submit"
+            size="lg"
+            :disabled="subBusy"
+            class="h-11 bg-forest-green hover:bg-forest-green/90 text-primary-foreground px-6 rounded-md"
+          >
+            {{ subBusy ? 'Subscribing…' : 'Subscribe' }}
+          </Button>
+        </form>
+        <p v-if="subState === 'success'" class="mt-5 text-sm text-forest-green" role="status">
+          You're on the list — we'll email you when a new story goes live.
+        </p>
+        <p v-else-if="subState === 'error'" class="mt-5 text-sm text-destructive" role="status">
+          That email could not be subscribed. Please check the address and try again.
         </p>
       </div>
     </section>
 
     <!-- Join -->
     <section class="px-5 sm:px-6 pb-16 sm:pb-20">
-      <div class="max-w-3xl mx-auto text-center border border-border/70 rounded-xl bg-card paper-texture px-6 sm:px-12 py-14 sm:py-16">
+      <div
+        class="max-w-3xl mx-auto text-center border border-border/70 rounded-xl bg-card paper-texture px-6 sm:px-12 py-14 sm:py-16"
+      >
         <h2 class="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-dark-olive mb-4">
           Your first story starts here
         </h2>
         <p class="text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed">
-          Create an account and we'll email you a link to sign in —
-          no password to remember. Then write, edit, and publish from your own quiet corner.
+          Create an account and we'll email you a link to sign in — no password to remember. Then write, edit, and
+          publish from your own quiet corner.
         </p>
         <div class="flex items-center justify-center gap-4 flex-wrap">
-          <a
-            :href="`${liveBlogBase}/signup.php`"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
+          <a :href="`${liveBlogBase}/signup.php`" target="_blank" rel="noopener noreferrer">
             <Button size="lg" class="bg-forest-green hover:bg-forest-green/90 text-primary-foreground px-8 rounded-lg">
               Create an account
             </Button>
@@ -368,15 +448,19 @@ onMounted(async () => {
             <span class="font-display font-semibold text-xl text-dark-olive">WAM</span>
             <span class="eyebrow text-forest-green">Blog</span>
           </div>
-          <p class="text-sm text-muted-foreground">
-            Stories worth your time, written with care.
-          </p>
+          <p class="text-sm text-muted-foreground">Stories worth your time, written with care.</p>
           <div class="flex items-center gap-6 text-sm text-muted-foreground">
-            <a href="https://github.com/richiekaroki/php-blog-project-backend" target="_blank" rel="noopener noreferrer" class="hover:text-forest-green transition-colors">GitHub</a>
+            <a
+              href="https://github.com/richiekaroki/php-blog-project-backend"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-forest-green transition-colors"
+              >GitHub</a
+            >
             <button
               type="button"
-              @click="showGetStarted = true"
               class="hover:text-forest-green transition-colors cursor-pointer"
+              @click="showGetStarted = true"
             >
               Join the journal
             </button>
@@ -386,8 +470,8 @@ onMounted(async () => {
           <span class="fleuron" aria-hidden="true"><span class="glyph">&#10086;</span></span>
           <button
             type="button"
-            @click="scrollToTop"
             class="text-xs uppercase tracking-[0.14em] font-semibold text-muted-foreground hover:text-forest-green transition-colors cursor-pointer"
+            @click="scrollToTop"
           >
             Back to top
           </button>

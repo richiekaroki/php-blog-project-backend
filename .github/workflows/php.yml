@@ -39,6 +39,25 @@ jobs:
       - name: Install PHPUnit
         run: composer install --dev --no-interaction
 
+      - name: Create database
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+        run: |
+          php -r '$p = new PDO("pgsql:host=localhost;port=5432;dbname=postgres","postgres","postgres"); $p->exec("CREATE DATABASE mizzle_backend");'
+
+      - name: Run Migrations
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_DATABASE: mizzle_backend
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_SSLMODE: prefer
+        run: php bin/migrate.php
+
       - name: Run Tests
         env:
           DB_HOST: localhost
@@ -56,6 +75,38 @@ jobs:
 
       - name: Lint PHP Files
         run: php -l $(find . -name '*.php' | grep -v vendor | grep -v '.github')
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npx prettier --check "src/**/*.{ts,vue}" "eslint.config.js" ".prettierrc.json"
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
 
   # Deployment is handled by Render's automatic deploy on push to main
   # (autoDeployTrigger on the service), so no deploy job is needed here.

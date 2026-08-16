@@ -745,3 +745,58 @@ p { text-wrap: pretty; }
 @media (min-width: 900px) {
   .post-layout { grid-template-columns: 1fr 300px; gap: 3rem; padding: 0 1.5rem 4rem; }
 }
+
+/* ------------------------------------------------- Comments + Newsletter */
+.hp-field { position: absolute !important; left: -9999px !important; width: 1px; height: 1px; overflow: hidden; }
+
+.banner {
+  padding: 0.9rem 1.1rem;
+  border-radius: 0.55rem;
+  font-size: 0.92rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid;
+}
+.banner-success { background: color-mix(in srgb, var(--green) 8%, transparent); border-color: color-mix(in srgb, var(--green) 25%, transparent); color: var(--green); }
+.banner-error { background: color-mix(in srgb, var(--destructive) 9%, transparent); border-color: color-mix(in srgb, var(--destructive) 22%, transparent); color: var(--destructive); }
+
+.comments-section { max-width: 760px; margin: 0 auto; padding: 0 1.25rem 4rem; }
+.comments-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--olive);
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.comments-empty { color: var(--muted-fg); font-size: 0.95rem; margin-bottom: 1.5rem; }
+.comment {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.comment:last-of-type { border-bottom: none; }
+.comment-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin-bottom: 0.4rem; }
+.comment-author { font-weight: 600; color: var(--olive); }
+.comment-date { font-size: 0.8rem; color: var(--muted-fg); }
+.comment-body { font-size: 0.98rem; line-height: 1.65; }
+.comment-form { margin-top: 1.5rem; }
+.comment-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem; }
+.comment-form .form-input, .comment-form .form-textarea, .newsletter-form input[type="email"] {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 0.55rem;
+  background: var(--bg);
+  color: var(--fg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.comment-form .form-input:focus, .comment-form .form-textarea:focus, .newsletter-form input[type="email"]:focus {
+  outline: none; border-color: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 16%, transparent);
+}
+.comment-form .form-textarea { min-height: 120px; resize: vertical; margin-bottom: 0.75rem; }
+.newsletter-form input[type="email"] { margin-bottom: 0.5rem; }
+@media (max-width: 560px) {
+  .comment-fields { grid-template-columns: 1fr; }
+}

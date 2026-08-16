@@ -1,9 +1,19 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
-export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    vue({
+      template: {
+        // Under vitest the absolute public-path assets resolve to a broken
+        // file:// URL, so skip asset-url rewriting there (dev/build are untouched).
+        transformAssetUrls: mode === 'test' ? false : undefined,
+      },
+    }),
+    tailwindcss(),
+  ],
   resolve: {
     alias: {
       '@': `${import.meta.dirname}/src`,
@@ -22,4 +32,9 @@ export default defineConfig({
       },
     },
   },
-})
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+  },
+}))

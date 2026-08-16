@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter, RouterLink } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { api } from '@/api/client'
 import Button from '@/components/ui/Button.vue'
 import Input from '@/components/ui/Input.vue'
@@ -10,8 +10,6 @@ import CardTitle from '@/components/ui/CardTitle.vue'
 import CardDescription from '@/components/ui/CardDescription.vue'
 import CardContent from '@/components/ui/CardContent.vue'
 import { Loader2, ArrowLeft, Mail, ArrowRight, CheckCircle2 } from 'lucide-vue-next'
-
-const router = useRouter()
 
 const magicEmail = ref('')
 const magicLoading = ref(false)
@@ -40,7 +38,10 @@ async function handleMagicSubmit() {
 <template>
   <div class="min-h-screen flex items-center justify-center paper-texture px-4 py-10">
     <div class="w-full max-w-md">
-      <RouterLink to="/" class="inline-flex items-center gap-2 text-muted-foreground hover:text-forest-green mb-8 transition-colors text-sm">
+      <RouterLink
+        to="/"
+        class="inline-flex items-center gap-2 text-muted-foreground hover:text-forest-green mb-8 transition-colors text-sm"
+      >
         <ArrowLeft class="h-4 w-4" />
         Back to the journal
       </RouterLink>
@@ -59,18 +60,18 @@ async function handleMagicSubmit() {
               <h3 class="font-display text-xl font-semibold text-foreground mb-2">Check your inbox</h3>
               <p class="text-sm text-muted-foreground mb-4 leading-relaxed">
                 We emailed a secure link to
-                <span class="font-medium text-foreground">{{ magicEmail }}</span>.
-                Click it to get started. The link expires in 10 minutes.
+                <span class="font-medium text-foreground">{{ magicEmail }}</span
+                >. Click it to get started. The link expires in 10 minutes.
               </p>
               <p class="text-sm text-muted-foreground">
                 Didn't receive it? Check your spam folder or
                 <button
-                  @click="magicSent = false"
                   type="button"
                   class="text-forest-green hover:text-forest-green/80 font-medium underline underline-offset-2"
+                  @click="magicSent = false"
                 >
-                  try again
-                </button>.
+                  try again</button
+                >.
               </p>
             </div>
 
@@ -79,7 +80,10 @@ async function handleMagicSubmit() {
                 We'll email a secure link to sign in. No password required.
               </p>
 
-              <div v-if="magicError" class="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+              <div
+                v-if="magicError"
+                class="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm"
+              >
                 {{ magicError }}
               </div>
 
@@ -98,9 +102,9 @@ async function handleMagicSubmit() {
               </div>
 
               <Button
-                @click="handleMagicSubmit"
                 :disabled="magicLoading"
                 class="w-full bg-forest-green hover:bg-forest-green/90 text-primary-foreground h-11 rounded-lg"
+                @click="handleMagicSubmit"
               >
                 <Loader2 v-if="magicLoading" class="mr-2 h-4 w-4 animate-spin" />
                 <ArrowRight v-else class="mr-2 h-4 w-4" />
@@ -111,9 +115,7 @@ async function handleMagicSubmit() {
         </CardContent>
       </Card>
 
-      <p class="text-center text-sm text-muted-foreground mt-6">
-        A quiet place for stories worth your time.
-      </p>
+      <p class="text-center text-sm text-muted-foreground mt-6">A quiet place for stories worth your time.</p>
     </div>
   </div>
 </template>

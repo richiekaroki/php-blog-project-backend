@@ -6,9 +6,7 @@ const props = defineProps<{
   class?: string
 }>()
 
-const classes = computed(() =>
-  cn('p-6 pt-0', props.class)
-)
+const classes = computed(() => cn('p-6 pt-0', props.class))
 </script>
 
 <template>

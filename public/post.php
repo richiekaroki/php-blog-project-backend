@@ -5,10 +5,14 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 require_once __DIR__ . '/inc/post-format.php';
 
 use App\Database\Connection;
+use App\Middleware\CSRF;
+use App\Middleware\RateLimit;
 use App\Middleware\SecurityHeaders;
+use App\Models\Comment;
 
 $pdo = Connection::getInstance();
 SecurityHeaders::send();
+CSRF::init();
 
 // Get post ID
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
@@ -32,6 +36,35 @@ if (!$post) {
     header("Location: index.php");
     exit;
 }
+
+// Handle a new comment submission (honeypot + CSRF + rate limited)
+$commentFlash = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['comment_submit'])) {
+    $honeypot = trim((string)($_POST['website'] ?? ''));
+    if ($honeypot !== '' || !CSRF::verify()) {
+        $commentFlash = 'invalid';
+    } else {
+        $rateLimit = new RateLimit($pdo);
+        $ip = RateLimit::clientIp();
+        if ($rateLimit->isBlocked('comment', $ip, 5, 900)) {
+            $commentFlash = 'rate';
+        } else {
+            $rateLimit->hit('comment', $ip, 900);
+            $newId = Comment::create(
+                (int)$post['id'],
+                trim((string)($_POST['name'] ?? '')),
+                strtolower(trim((string)($_POST['email'] ?? ''))),
+                trim((string)($_POST['comment'] ?? ''))
+            );
+            $commentFlash = $newId !== null ? 'pending' : 'invalid';
+        }
+    }
+}
+
+$approvedComments = Comment::approvedFor((int)$post['id']);
+
+// Banner state from newsletter subscribe redirects
+$newsFlash = isset($_GET['subscribed']) ? 'subscribed' : (isset($_GET['subscribe_error']) ? 'error' : null);
 
 // Count this read (fire-and-forget; drafts are never reached here)
 $pdo->prepare("UPDATE blogs SET views = views + 1 WHERE id = ?")->execute([$id]);
@@ -103,6 +136,12 @@ $postDate = $post['created_at'] ?? null;
         </div>
     </nav>
 
+    <?php if ($newsFlash === 'subscribed'): ?>
+        <div class="banner banner-success" style="max-width: 1100px; margin: 1.25rem auto 0;">Thanks — you are on the list. We will email you when a new story goes live.</div>
+    <?php elseif ($newsFlash === 'error'): ?>
+        <div class="banner banner-error" style="max-width: 1100px; margin: 1.25rem auto 0;">That email could not be subscribed. Please check the address and try again.</div>
+    <?php endif; ?>
+
     <!-- Post Hero -->
     <header class="post-hero">
         <div class="post-hero-inner">
@@ -160,6 +199,19 @@ $postDate = $post['created_at'] ?? null;
                 </div>
             </div>
 
+            <!-- Newsletter -->
+            <div class="sidebar-card">
+                <h3>Never miss a story</h3>
+                <p class="post-info-label" style="margin-bottom: 0.75rem;">Join the list — one gentle email when a new post goes live. Unsubscribe anytime.</p>
+                <form method="POST" action="subscribe.php" class="newsletter-form">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                    <input type="hidden" name="back" value="post.php?id=<?php echo $post['id']; ?>">
+                    <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
+                    <input type="email" name="email" placeholder="you@example.com" required>
+                    <button type="submit" class="btn-outline" style="width: 100%;">Subscribe</button>
+                </form>
+            </div>
+
             <!-- Related Posts -->
             <?php if (!empty($relatedPosts)): ?>
                 <div class="sidebar-card">
@@ -187,6 +239,46 @@ $postDate = $post['created_at'] ?? null;
             <?php endif; ?>
         </aside>
     </div>
+
+    <!-- Comments -->
+    <section class="comments-section">
+        <?php if ($commentFlash === 'pending'): ?>
+            <div class="banner banner-success">Thanks! Your comment has been received and will appear once it is approved.</div>
+        <?php elseif ($commentFlash === 'invalid'): ?>
+            <div class="banner banner-error">Your comment could not be saved. Please check your details and try again.</div>
+        <?php elseif ($commentFlash === 'rate'): ?>
+            <div class="banner banner-error">You have posted too many comments recently — please try again in a little while.</div>
+        <?php endif; ?>
+
+        <h2 class="comments-title">Comments</h2>
+        <?php if (empty($approvedComments)): ?>
+            <p class="comments-empty">No comments yet — start the conversation.</p>
+        <?php else: ?>
+            <?php foreach ($approvedComments as $c): ?>
+                <div class="comment">
+                    <div class="comment-head">
+                        <span class="comment-author"><?php echo htmlspecialchars($c['author_name'], ENT_QUOTES, 'UTF-8'); ?></span>
+                        <span class="comment-date"><?php echo date('M j, Y', strtotime($c['created_at'])); ?></span>
+                    </div>
+                    <div class="comment-body"><?php echo nl2br(htmlspecialchars($c['content'], ENT_QUOTES, 'UTF-8')); ?></div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+
+        <?php if ($commentFlash !== 'pending'): ?>
+            <form method="POST" action="post.php?id=<?php echo $post['id']; ?>" class="comment-form">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
+                <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
+                <h3 style="font-family: 'Fraunces', Georgia, serif; font-size: 1.15rem; font-weight: 600; color: var(--olive); margin-bottom: 1rem;">Leave a comment</h3>
+                <div class="comment-fields">
+                    <input type="text" name="name" class="form-input" placeholder="Your name *" required maxlength="100">
+                    <input type="email" name="email" class="form-input" placeholder="Email (optional, never shown)" maxlength="255">
+                </div>
+                <textarea name="comment" class="form-textarea" placeholder="Share a thought…" required></textarea>
+                <button type="submit" name="comment_submit" value="1" class="btn-outline">Post comment</button>
+            </form>
+        <?php endif; ?>
+    </section>
 
     <!-- Footer -->
     <footer class="footer">

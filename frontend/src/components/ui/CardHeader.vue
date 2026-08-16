@@ -6,9 +6,7 @@ const props = defineProps<{
   class?: string
 }>()
 
-const classes = computed(() =>
-  cn('flex flex-col space-y-1.5 p-6', props.class)
-)
+const classes = computed(() => cn('flex flex-col space-y-1.5 p-6', props.class))
 </script>
 
 <template>

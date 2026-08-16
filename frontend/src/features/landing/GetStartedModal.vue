@@ -45,9 +45,9 @@ async function submit() {
           <h2 class="font-display text-lg font-semibold text-dark-olive">Join the journal</h2>
         </div>
         <button
-          @click="emit('close')"
           class="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
           aria-label="Close"
+          @click="emit('close')"
         >
           <X class="h-5 w-5" />
         </button>
@@ -58,22 +58,25 @@ async function submit() {
           <CheckCircle2 class="h-14 w-14 text-forest-green mx-auto mb-4" />
           <h3 class="font-display text-xl font-semibold text-dark-olive mb-2">Check your inbox</h3>
           <p class="text-muted-foreground text-sm leading-relaxed">
-            We emailed a link to <span class="font-medium text-foreground">{{ email }}</span>.
-            Click it to get started. The link expires in 10 minutes.
+            We emailed a link to <span class="font-medium text-foreground">{{ email }}</span
+            >. Click it to get started. The link expires in 10 minutes.
           </p>
         </div>
 
         <template v-else>
           <p class="text-muted-foreground text-sm mb-6 leading-relaxed">
-            Enter your email and we'll send a secure link to sign in. No password needed —
-            you'll be writing in under a minute.
+            Enter your email and we'll send a secure link to sign in. No password needed — you'll be writing in under a
+            minute.
           </p>
 
-          <div v-if="error" class="p-3 mb-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+          <div
+            v-if="error"
+            class="p-3 mb-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm"
+          >
             {{ error }}
           </div>
 
-          <form @submit.prevent="submit" class="space-y-4">
+          <form class="space-y-4" @submit.prevent="submit">
             <div class="space-y-2">
               <label class="text-sm font-medium text-dark-olive">Email address</label>
               <div class="relative">

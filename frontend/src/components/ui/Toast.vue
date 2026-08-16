@@ -37,10 +37,7 @@ const colors = {
       >
         <component :is="icons[toast.type]" class="w-5 h-5 flex-shrink-0" />
         <p class="flex-1 text-sm font-medium">{{ toast.message }}</p>
-        <button
-          @click="removeToast(toast.id)"
-          class="flex-shrink-0 p-1 rounded hover:bg-black/10"
-        >
+        <button class="flex-shrink-0 p-1 rounded hover:bg-black/10" @click="removeToast(toast.id)">
           <X class="w-4 h-4" />
         </button>
       </div>

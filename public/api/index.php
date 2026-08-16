@@ -33,7 +33,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 //   viewer = read-only (no writes)
 // Public actions (magic sign-in request, sign-up request) bypass the gate.
 $writeMethods = ['POST', 'PUT', 'DELETE'];
-$publicActions = ['magic', 'signup-request'];
+$publicActions = ['magic', 'signup-request', 'newsletter'];
 $isPublicAction = in_array($_GET['action'] ?? '', $publicActions, true);
 if (in_array($method, $writeMethods) && !$isPublicAction) {
     Auth::startSession();
@@ -128,6 +128,9 @@ try {
             break;
         case 'signup-request':
             handleSignupRequest($method, $pdo, $rateLimit, $ip);
+            break;
+        case 'newsletter':
+            handleNewsletter($method, $pdo, $rateLimit, $ip);
             break;
         case 'profile':
             handleProfile($method, $pdo);
@@ -743,6 +746,40 @@ function handleSignupRequest($method, $pdo, $rateLimit, $ip) {
     }
 
     sendResponse(200, ['success' => true, 'message' => 'Your account is ready. We sent a sign in link to your inbox.', 'existing' => false]);
+}
+
+/**
+ * Handle a newsletter subscription.
+ * POST /api/newsletter  { "email": "..." }
+ */
+function handleNewsletter($method, $pdo, $rateLimit, $ip) {
+    if ($method !== 'POST') {
+        sendResponse(405, ['error' => 'Method not allowed']);
+    }
+
+    // Per-IP throttle: max 5 subscriptions per 15 minutes (spam guard).
+    if ($rateLimit->isBlocked('newsletter', $ip, 5, 900)) {
+        sendResponse(429, ['error' => 'Too many subscription requests. Please try again in 15 minutes.']);
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    $email = strtolower(trim($data['email'] ?? ''));
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        sendResponse(400, ['error' => 'A valid email address is required']);
+    }
+    $rateLimit->hit('newsletter', $ip, 900);
+
+    $result = \App\Models\Subscriber::subscribe($email);
+    if ($result === null) {
+        sendResponse(400, ['error' => 'A valid email address is required']);
+    }
+
+    sendResponse(200, [
+        'success' => true,
+        'message' => $result['status'] === 'added'
+            ? 'You are on the list. We will email you when a new story goes live.'
+            : 'You were already subscribed — no changes made.',
+    ]);
 }
 
 function emailHtml(string $loginUrl): string {

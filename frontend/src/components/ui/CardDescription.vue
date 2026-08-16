@@ -6,9 +6,7 @@ const props = defineProps<{
   class?: string
 }>()
 
-const classes = computed(() =>
-  cn('text-sm text-muted-foreground', props.class)
-)
+const classes = computed(() => cn('text-sm text-muted-foreground', props.class))
 </script>
 
 <template>
