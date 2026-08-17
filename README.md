@@ -1,7 +1,7 @@
 # WAM Blog
 
 [![CI](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml/badge.svg)](https://github.com/richiekaroki/php-blog-project-backend/actions/workflows/php.yml)
-[![Tests](https://img.shields.io/badge/tests-68%20passed-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-76%20passed-brightgreen)](#testing)
 [![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php)](#)
 [![Vue](https://img.shields.io/badge/Vue-3-42b883?logo=vue.js)](#)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql)](#)
@@ -13,8 +13,8 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 
 | URL | Description |
 |-----|-------------|
-| [Homepage](https://php-blog-backend.onrender.com) | Public blog — landing page + sign-in |
-| [Admin Panel](https://php-blog-backend.onrender.com/admin/login.php) | Passwordless sign-in → manage blogs, categories, profile & sessions |
+| [Homepage](https://php-blog-backend.onrender.com) | Public blog — landing page + sign-in + newsletter |
+| [Admin Panel](https://php-blog-backend.onrender.com/admin/login.php) | Passwordless sign-in → blogs, comments, subscribers, analytics, profile & sessions |
 | [API Health](https://php-blog-backend.onrender.com/api/index.php?action=health) | Status check |
 
 ---
@@ -27,11 +27,16 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 - 🚦 **DB-backed IP rate limiting** — magic-link requests, 2FA attempts, and API requests all capped per-minute, keyed on hashed IP (cookies can't reset it).
 - 👥 **Role-based access control** — `admin` (full), `editor` (create/edit), `viewer` (read-only), enforced server-side on the API **and** PHP admin pages.
 - 📨 **Instant sign-ups** — any email can create an account (starts as `editor`) at `/signup.php` or by requesting a sign-in link; a magic link arrives immediately. No admin approval required.
+- 💬 **Moderated comments** — readers comment on any published post; comments land in a `pending` queue (spam-guarded by rate limits + a honeypot field) and only appear once an admin/editor approves them.
+- 📬 **Newsletter** — one-click subscribe (public API + server-rendered forms + the SPA), token-based one-click unsubscribe, and a best-effort email to every subscriber whenever a post is first published.
+- 📊 **Post analytics** — admin dashboard with totals, top posts by views, reads by category, and a 6-month trend.
+- 👁️ **Editor live preview** — render markdown content as HTML side-by-side while editing, via a read-only preview endpoint.
 - 🐘 **PostgreSQL + PDO** — parameterized queries throughout, search/filter/pagination, image uploads with validation.
 - 🕷️ **SEO-friendly** — crawlers get the fully server-rendered landing page (nginx bot UA detection); humans get the Vue SPA.
-- 🔎 **Activity feed** — `activity.php` surfaces sign-ins, 2FA enable/disable, session revocations, and content edits with human-readable labels.
+- 🔎 **Activity feed** — `activity.php` surfaces sign-ins, 2FA enable/disable, session revocations, comment and subscriber events, and content edits with human-readable labels.
 - 🚀 **One-container deploy** — multi-stage Dockerfile builds the Vue SPA and serves it alongside PHP-FPM behind Nginx (same-origin, no CORS in production).
-- 📝 **Audit logging** — `activity_log` records sign-ins, 2FA changes, and session revocations.
+- ✅ **Quality gate in CI** — PHPUnit against a disposable Postgres (migrations applied), plus frontend ESLint, Prettier, Vitest, and the production build on every push.
+- 📝 **Audit logging** — `activity_log` records sign-ins, 2FA changes, session revocations, comment submissions, and subscriber events.
 
 ---
 
@@ -43,7 +48,7 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 | Backend | PHP 8.4, Nginx + PHP-FPM (Docker) |
 | Database | PostgreSQL 17 (Neon, managed) |
 | Email | Brevo HTTP API (magic links + admin notifications; SMTP fallback) |
-| Testing | PHPUnit (68 tests / 160 assertions) |
+| Testing | PHPUnit (76 tests / 190 assertions) + Vitest (6 tests) |
 | Hosting | Render (docker runtime) |
 
 ---
@@ -51,23 +56,25 @@ A secure, passwordless blog platform: **PHP 8.4 backend**, **Vue 3 public SPA**,
 ## Project Structure
 
 ```
-├── frontend/              # Vue 3 + TS public SPA (landing + login)
+├── frontend/              # Vue 3 + TS public SPA (landing + login + newsletter)
 │   └── src/
 │       ├── api/           # Axios client (same-origin)
 │       ├── components/ui/ # Button, Card*, Input, Toast
 │       ├── composables/   # useToast, useDarkMode
-│       ├── features/      # landing/ (LandingView, GetStartedModal), auth/ (LoginView)
+│       ├── features/      # landing/, auth/ (LoginView), landing/LandingView
 │       └── router/        # /, /login, catch-all
 ├── src/                   # PHP: Auth, Middleware, Mail, Models, Database, Support
 │   ├── Auth/              # MagicLink (HMAC tokens), Totp (RFC 6238)
-│   └── Middleware/        # Auth, CSRF, CORS, SecurityHeaders
+│   ├── Middleware/        # Auth, CSRF, CORS, RateLimit, SecurityHeaders
+│   └── Models/            # Comment, Subscriber, Blog, Category, ActivityLog, ...
 ├── public/
-│   ├── admin/             # login, blogs, categories, edit-blog, profile
+│   ├── admin/             # login, blogs, edit-blog, categories, comments,
+│   │                      # subscribers, analytics, preview, profile, users, activity
 │   ├── api/index.php      # REST router + write gate
-│   ├── index.php / post.php
+│   ├── index.php / post.php / subscribe.php / unsubscribe.php
 │   └── uploads/           # blog images
 ├── sql/                   # schema + migrations (Neon)
-├── tests/                 # PHPUnit (68 tests)
+├── tests/                 # PHPUnit (76 tests)
 ├── Dockerfile / nginx.conf / render.yaml / php-fpm.conf
 └── .env.example
 ```
@@ -94,16 +101,17 @@ Generate an `APP_KEY` (32 random bytes, `base64:` prefix):
 php -r "echo 'base64:' . base64_encode(random_bytes(32)) . PHP_EOL;"
 ```
 
-Create the database and apply migrations (auto-applies pending ones in order):
+Create the database and apply migrations (the `base_schema` migration creates every table — `ruru_schema.sql` is kept as reference only and is never executed):
 
 ```bash
 createdb mizzle_backend       # or: psql -U postgres -c "CREATE DATABASE mizzle_backend;"
-psql -U postgres -d mizzle_backend -f sql/ruru_schema.sql   # base schema (includes admins)
 composer migrate              # runs sql/migrations/*.sql in order, tracked in schema_migrations
 composer migrate:status       # list APPLIED / PENDING without applying
 ```
 
-Set a real email on an admin row so magic links can be sent:
+**Local auth without email:** set `APP_ENV=local` and `DEV_AUTOLOGIN=true` in `.env` — any `/admin/*` page then signs you in instantly as a dev admin (never set either in production). Set `DB_SSLMODE=prefer` in `.env` for local Postgres.
+
+For real magic-link email, make sure an admin row has an email address:
 
 ```sql
 UPDATE admins SET email = 'you@example.com' WHERE username = 'admin';
@@ -156,7 +164,17 @@ Verify: `SELECT count(*) FROM auth_sessions;` and `SELECT count(*) FROM login_ra
 vendor/bin/phpunit --testdox
 ```
 
-68 tests / 160 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, the auth-security suite (single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation), the invitations table (lifecycle, rejection, uniqueness), auto-provisioning (account creation, existing-account reuse, unique usernames), and per-email/per-IP magic-link throttles.
+76 tests / 190 assertions (3 skipped are live-API tests that need a running server). Covers CRUD lifecycles, SQL-injection safety, escaping, CSRF/session hardening, upload validation, the auth-security suite (single-use magic links, tampered-token rejection, RFC 6238 TOTP vectors, `auth_sessions` revocation), the invitations table (lifecycle, rejection, uniqueness), auto-provisioning (account creation, existing-account reuse, unique usernames), per-email/per-IP magic-link throttles, the **comment workflow** (pending → approve → delete, invalid input rejected), and the **subscriber workflow** (subscribe → dedupe → unsubscribe, invalid email rejected).
+
+The frontend has its own gate:
+
+```bash
+cd frontend
+npm test              # Vitest (6 tests)
+npm run lint          # ESLint
+npx prettier --check "src/**/*.{ts,vue}"
+npm run build         # production bundle (also gated in CI)
+```
 
 ---
 
@@ -206,6 +224,7 @@ See [IMPLEMENTATION.md](IMPLEMENTATION.md) for the full flow and [DESIGN.md](DES
 | `/api/index.php?action=upload` | POST | admin, editor | Image upload |
 | `/api/index.php?action=magic/request` | POST | Public | Send magic link |
 | `/api/index.php?action=signup-request` | POST | Public | Create an account & send sign-in link |
+| `/api/index.php?action=newsletter` | POST | Public | Subscribe an email to the newsletter |
 | `/api/index.php?action=profile` | GET, PUT | Authenticated | Read / update profile |
 
 Path-style routing (`/api/blogs`, `/api/blogs/1`) is supported too.
