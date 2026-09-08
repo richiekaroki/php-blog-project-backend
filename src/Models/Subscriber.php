@@ -21,7 +21,7 @@ class Subscriber
 
         $pdo = Connection::getInstance();
 
-        $stmt = $pdo->prepare("SELECT id FROM subscribers WHERE LOWER(email) = ? LIMIT 1");
+        $stmt = $pdo->prepare('SELECT id FROM subscribers WHERE LOWER(email) = ? LIMIT 1');
         $stmt->execute([$email]);
         $existing = $stmt->fetch();
         if ($existing) {
@@ -29,7 +29,7 @@ class Subscriber
         }
 
         $token = bin2hex(random_bytes(32));
-        $stmt = $pdo->prepare("INSERT INTO subscribers (email, token) VALUES (?, ?)");
+        $stmt = $pdo->prepare('INSERT INTO subscribers (email, token) VALUES (?, ?)');
         $stmt->execute([$email, $token]);
 
         $id = (int)$pdo->lastInsertId();
@@ -44,13 +44,13 @@ class Subscriber
     public static function all(): array
     {
         $pdo = Connection::getInstance();
-        return $pdo->query("SELECT id, email, created_at FROM subscribers ORDER BY id DESC")->fetchAll();
+        return $pdo->query('SELECT id, email, created_at FROM subscribers ORDER BY id DESC')->fetchAll();
     }
 
     public static function count(): int
     {
         $pdo = Connection::getInstance();
-        return (int)$pdo->query("SELECT COUNT(*) FROM subscribers")->fetchColumn();
+        return (int)$pdo->query('SELECT COUNT(*) FROM subscribers')->fetchColumn();
     }
 
     /**
@@ -60,7 +60,7 @@ class Subscriber
     public static function removeByToken(string $token): bool
     {
         $pdo = Connection::getInstance();
-        $stmt = $pdo->prepare("DELETE FROM subscribers WHERE token = ?");
+        $stmt = $pdo->prepare('DELETE FROM subscribers WHERE token = ?');
         $stmt->execute([$token]);
         $ok = $stmt->rowCount() > 0;
         if ($ok) {
@@ -75,7 +75,7 @@ class Subscriber
     public static function removeById(int $id): bool
     {
         $pdo = Connection::getInstance();
-        $stmt = $pdo->prepare("DELETE FROM subscribers WHERE id = ?");
+        $stmt = $pdo->prepare('DELETE FROM subscribers WHERE id = ?');
         $stmt->execute([$id]);
         $ok = $stmt->rowCount() > 0;
         if ($ok) {
@@ -98,7 +98,7 @@ class Subscriber
     public static function notifyNewPost(array $post): int
     {
         $pdo = Connection::getInstance();
-        $rows = $pdo->query("SELECT id, email, token FROM subscribers")->fetchAll();
+        $rows = $pdo->query('SELECT id, email, token FROM subscribers')->fetchAll();
         if ($rows === []) {
             return 0;
         }

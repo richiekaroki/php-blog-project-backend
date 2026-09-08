@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Apply pending SQL migrations from sql/migrations/ in filename order.
  *
@@ -36,8 +37,12 @@ if ($dbUrlRaw) {
     $channelBinding = null;
     if (isset($dbUrl['query'])) {
         parse_str($dbUrl['query'], $q);
-        if (!empty($q['sslmode'])) $sslmode = $q['sslmode'];
-        if (!empty($q['channel_binding'])) $channelBinding = $q['channel_binding'];
+        if (!empty($q['sslmode'])) {
+            $sslmode = $q['sslmode'];
+        }
+        if (!empty($q['channel_binding'])) {
+            $channelBinding = $q['channel_binding'];
+        }
     }
 } elseif ($dbHost) {
     $host = $dbHost;
@@ -68,15 +73,15 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 } catch (PDOException $e) {
-    fwrite(STDERR, "Connection failed: " . $e->getMessage() . "\n");
+    fwrite(STDERR, 'Connection failed: ' . $e->getMessage() . "\n");
     exit(1);
 }
 
 // ---- Tracking table ----
-$pdo->exec("CREATE TABLE IF NOT EXISTS schema_migrations (
+$pdo->exec('CREATE TABLE IF NOT EXISTS schema_migrations (
     version VARCHAR(255) PRIMARY KEY,
     applied_at TIMESTAMP NOT NULL DEFAULT NOW()
-)");
+)');
 
 $mode = $argv[1] ?? 'migrate';
 $force = in_array('--force', $argv, true);
@@ -90,7 +95,7 @@ if ($files === false || $files === []) {
 sort($files);
 
 $applied = [];
-foreach ($pdo->query("SELECT version FROM schema_migrations")->fetchAll() as $row) {
+foreach ($pdo->query('SELECT version FROM schema_migrations')->fetchAll() as $row) {
     $applied[$row['version']] = true;
 }
 
@@ -130,7 +135,7 @@ foreach ($files as $file) {
         foreach ($statements as $statement) {
             $pdo->exec($statement);
         }
-        $stmt = $pdo->prepare("INSERT INTO schema_migrations (version) VALUES (?) ON CONFLICT (version) DO NOTHING");
+        $stmt = $pdo->prepare('INSERT INTO schema_migrations (version) VALUES (?) ON CONFLICT (version) DO NOTHING');
         $stmt->execute([$name]);
         $pdo->commit();
         $ran++;

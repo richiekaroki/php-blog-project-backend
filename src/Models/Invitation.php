@@ -17,7 +17,7 @@ class Invitation
     {
         $pdo = Connection::getInstance();
 
-        $stmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE LOWER(email) = ? LIMIT 1");
+        $stmt = $pdo->prepare('SELECT id, username, email, role FROM admins WHERE LOWER(email) = ? LIMIT 1');
         $stmt->execute([$email]);
         $existing = $stmt->fetch();
         if ($existing) {
@@ -32,7 +32,7 @@ class Invitation
         $username = $base;
         $suffix = 1;
         while (true) {
-            $dup = $pdo->prepare("SELECT id FROM admins WHERE LOWER(username) = ? LIMIT 1");
+            $dup = $pdo->prepare('SELECT id FROM admins WHERE LOWER(username) = ? LIMIT 1');
             $dup->execute([$username]);
             if (!$dup->fetch()) {
                 break;
@@ -41,7 +41,7 @@ class Invitation
         }
 
         try {
-            $ins = $pdo->prepare("INSERT INTO admins (username, email, role) VALUES (?, ?, ?)");
+            $ins = $pdo->prepare('INSERT INTO admins (username, email, role) VALUES (?, ?, ?)');
             $ins->execute([$username, $email, $role]);
             $userId = (int)$pdo->lastInsertId();
 

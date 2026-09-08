@@ -1,15 +1,15 @@
-﻿<?php
+<?php
 // admin/login.php - Admin login with PDO, CSRF and Rate Limiting
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
-use App\Database\Connection;
-use App\Middleware\Auth;
-use App\Middleware\CSRF;
-use App\Middleware\CORS;
 use App\Auth\MagicLink;
 use App\Auth\Totp;
+use App\Database\Connection;
 use App\Mail\Mailer;
+use App\Middleware\Auth;
+use App\Middleware\CORS;
+use App\Middleware\CSRF;
 use App\Models\ActivityLog;
 use App\Support\Env;
 
@@ -31,7 +31,7 @@ header('Content-Type: ' . ($wantsJson ? 'application/json' : 'text/html; charset
 // Handle passwordless magic link request (HTML form POST)
 // Any email can request a link; if no account exists yet, one is auto-created
 // (editor role) so first-time sign-in is smooth.
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['magic_email'])) {
     if (!CSRF::verify($_POST['csrf_token'] ?? '')) {
         http_response_code(400);
         $magicError = 'Invalid CSRF token. Please reload and try again.';
@@ -75,7 +75,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['magic_email'])) {
                     $magicEmail,
                     'Your WAM Blog sign in link',
                     $htmlBody,
-                    "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
+                    "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . ' minutes.'
                 );
 
                 ActivityLog::log('magic_link_sent', 'auth', (int)($user['id'] ?? 0), ['email' => $magicEmail]);
@@ -110,7 +110,7 @@ function redeemMagicToken($pdo, string $token): void
         die('This sign in link has already been used. Please request a new one.');
     }
 
-    $stmt = $pdo->prepare("SELECT * FROM admins WHERE LOWER(email) = ? LIMIT 1");
+    $stmt = $pdo->prepare('SELECT * FROM admins WHERE LOWER(email) = ? LIMIT 1');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 
@@ -144,10 +144,10 @@ function redeemMagicToken($pdo, string $token): void
                 'username' => $user['username'],
                 'email' => $user['email'] ?? null,
                 'role' => $user['role'] ?? 'editor',
-            ]
+            ],
         ]);
     } else {
-        header("Location: blogs.php");
+        header('Location: blogs.php');
     }
     exit;
 }
@@ -197,7 +197,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
     }
 
     $code = trim($_POST['code'] ?? '');
-    $stmt = $pdo->prepare("SELECT * FROM admins WHERE LOWER(email) = ? LIMIT 1");
+    $stmt = $pdo->prepare('SELECT * FROM admins WHERE LOWER(email) = ? LIMIT 1');
     $stmt->execute([$_SESSION['pending_2fa_email']]);
     $user = $stmt->fetch();
 
@@ -214,7 +214,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
         Auth::registerSession($user['username']);
         ActivityLog::log('magic_link_used', 'auth', (int)$user['id'], ['email' => $user['email'], '2fa' => true]);
 
-        header("Location: blogs.php");
+        header('Location: blogs.php');
         exit;
     }
 
@@ -227,7 +227,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'verify_2fa') {
 // Handle auth status check (for Vue frontend)
 if (isset($_GET['action']) && $_GET['action'] === 'status') {
     if (isset($_SESSION['admin']) && Auth::isSessionValid()) {
-        $stmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE username = ? LIMIT 1");
+        $stmt = $pdo->prepare('SELECT id, username, email, role FROM admins WHERE username = ? LIMIT 1');
         $stmt->execute([$_SESSION['admin']]);
         $user = $stmt->fetch();
         echo json_encode([
@@ -242,7 +242,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'status') {
                 'username' => $_SESSION['admin'],
                 'email' => null,
                 'role' => $_SESSION['user_role'] ?? 'editor',
-            ]
+            ],
         ]);
     } else {
         http_response_code(401);

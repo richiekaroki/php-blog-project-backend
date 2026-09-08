@@ -101,11 +101,11 @@ class RateLimit
 
     private function check(string $bucket, string $key, int $maxAttempts, int $windowSeconds): bool
     {
-        $stmt = $this->pdo->prepare("
+        $stmt = $this->pdo->prepare('
             SELECT attempt_count, window_start
             FROM login_rate_limits
             WHERE bucket = ? AND ip_hash = ?
-        ");
+        ');
         $stmt->execute([$bucket, $key]);
         $row = $stmt->fetch();
 
@@ -123,7 +123,7 @@ class RateLimit
     public function reset(string $bucket, string $ip): void
     {
         $key = hash('sha256', $bucket . '|' . $ip);
-        $stmt = $this->pdo->prepare("DELETE FROM login_rate_limits WHERE bucket = ? AND ip_hash = ?");
+        $stmt = $this->pdo->prepare('DELETE FROM login_rate_limits WHERE bucket = ? AND ip_hash = ?');
         $stmt->execute([$bucket, $key]);
     }
 }

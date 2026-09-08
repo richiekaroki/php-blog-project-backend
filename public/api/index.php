@@ -1,14 +1,15 @@
 <?php
+
 // api/index.php - API entry point and router
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
-use App\Database\Connection;
-use App\Middleware\CORS;
-use App\Middleware\Auth;
-use App\Models\ActivityLog;
 use App\Auth\MagicLink;
+use App\Database\Connection;
 use App\Mail\Mailer;
+use App\Middleware\Auth;
+use App\Middleware\CORS;
+use App\Models\ActivityLog;
 use App\Support\Env;
 
 CORS::handle();
@@ -59,7 +60,7 @@ $count = $rateLimit->hit('api', $ip, 60);
 
 // Add rate limit headers
 $remaining = max(0, 100 - $count);
-header("X-RateLimit-Limit: 100");
+header('X-RateLimit-Limit: 100');
 header("X-RateLimit-Remaining: $remaining");
 
 if ($count > 100) {
@@ -102,14 +103,14 @@ try {
         case 'health':
             // Check database connectivity
             try {
-                $pdo->query("SELECT 1");
+                $pdo->query('SELECT 1');
                 $dbStatus = 'connected';
                 $httpStatus = 200;
             } catch (PDOException $e) {
                 $dbStatus = 'disconnected';
                 $httpStatus = 503;
             }
-            
+
             sendResponse($httpStatus, [
                 'status' => $httpStatus === 200 ? 'ok' : 'degraded',
                 'database' => $dbStatus,
@@ -146,7 +147,8 @@ try {
 /**
  * Handle blogs endpoint
  */
-function handleBlogs($method, $id, $pdo) {
+function handleBlogs($method, $id, $pdo)
+{
     switch ($method) {
         case 'GET':
             if ($id) {
@@ -159,7 +161,7 @@ function handleBlogs($method, $id, $pdo) {
                 ");
                 $stmt->execute([$id]);
                 $blog = $stmt->fetch();
-                
+
                 if (!$blog) {
                     sendResponse(404, ['error' => 'Blog not found']);
                 }
@@ -170,11 +172,11 @@ function handleBlogs($method, $id, $pdo) {
                 $page = max(1, (int)($_GET['page'] ?? 1));
                 $limit = min(50, max(1, (int)($_GET['limit'] ?? 10)));
                 $cursor = $_GET['cursor'] ?? null;
-                
+
                 // Get total count
                 $countStmt = $pdo->query("SELECT COUNT(*) AS total FROM blogs WHERE status = 'published'");
                 $total = $countStmt->fetch()['total'];
-                
+
                 // Cursor-based or offset-based pagination
                 if ($cursor) {
                     $stmt = $pdo->prepare("
@@ -209,13 +211,13 @@ function handleBlogs($method, $id, $pdo) {
                     unset($blog['content']);
                 }
                 unset($blog);
-                
+
                 // Get next cursor for cursor-based pagination
                 $nextCursor = null;
                 if ($cursor && count($blogs) === $limit) {
                     $nextCursor = end($blogs)['id'];
                 }
-                
+
                 $response = [
                     'success' => true,
                     'data' => $blogs,
@@ -225,125 +227,125 @@ function handleBlogs($method, $id, $pdo) {
                         'limit' => $limit,
                         'pages' => ceil($total / $limit),
                         'next_cursor' => $nextCursor,
-                    ]
+                    ],
                 ];
                 setCacheHeaders($response, 60);
                 sendResponse(200, $response);
             }
             break;
-            
+
         case 'POST':
             // Create new blog — CRITICAL-3: whitelist allowed fields
             requireApiRole(['admin', 'editor']);
             $data = json_decode(file_get_contents('php://input'), true);
-            
+
             if (!$data || empty($data['title']) || empty($data['content'])) {
                 sendResponse(400, ['error' => 'Title and content are required']);
             }
-            
+
             $allowed = ['title', 'content', 'category_id', 'image'];
             $data = array_intersect_key($data, array_flip($allowed));
-            
+
             // Sanitize text fields (prevent stored XSS via API)
             $title = strip_tags(trim($data['title']));
             $content = strip_tags(trim($data['content']));
             $categoryId = $data['category_id'] ?? null;
             $image = $data['image'] ?? null;
-            
+
             if (empty($title)) {
                 sendResponse(400, ['error' => 'Title cannot be empty after sanitization']);
             }
-            
-            $stmt = $pdo->prepare("INSERT INTO blogs (title, content, image, category_id) VALUES (?, ?, ?, ?)");
+
+            $stmt = $pdo->prepare('INSERT INTO blogs (title, content, image, category_id) VALUES (?, ?, ?, ?)');
             $stmt->execute([$title, $content, $image, $categoryId]);
-            
+
             $newId = $pdo->lastInsertId();
             ActivityLog::log('created', 'blog', (int)$newId, ['title' => $title]);
             sendResponse(201, ['success' => true, 'id' => $newId, 'message' => 'Blog created']);
             break;
-            
+
         case 'PUT':
             // Update blog
             requireApiRole(['admin', 'editor']);
             if (!$id) {
                 sendResponse(400, ['error' => 'Blog ID is required']);
             }
-            
+
             $data = json_decode(file_get_contents('php://input'), true);
-            
+
             if (!$data) {
                 sendResponse(400, ['error' => 'Invalid JSON data']);
             }
-            
+
             // CRITICAL-3: whitelist allowed fields
             $allowed = ['title', 'content', 'image', 'category_id'];
             $data = array_intersect_key($data, array_flip($allowed));
-            
+
             // Check if blog exists
-            $stmt = $pdo->prepare("SELECT id FROM blogs WHERE id = ?");
+            $stmt = $pdo->prepare('SELECT id FROM blogs WHERE id = ?');
             $stmt->execute([$id]);
             if (!$stmt->fetch()) {
                 sendResponse(404, ['error' => 'Blog not found']);
             }
-            
+
             // Build update query
             $updates = [];
             $params = [];
-            
+
             if (isset($data['title'])) {
-                $updates[] = "title = ?";
+                $updates[] = 'title = ?';
                 $params[] = strip_tags(trim($data['title']));
             }
             if (isset($data['content'])) {
-                $updates[] = "content = ?";
+                $updates[] = 'content = ?';
                 $params[] = strip_tags(trim($data['content']));
             }
             if (isset($data['image'])) {
-                $updates[] = "image = ?";
+                $updates[] = 'image = ?';
                 $params[] = $data['image'];
             }
             if (isset($data['category_id'])) {
-                $updates[] = "category_id = ?";
+                $updates[] = 'category_id = ?';
                 $params[] = $data['category_id'];
             }
-            
+
             if (empty($updates)) {
                 sendResponse(400, ['error' => 'No fields to update']);
             }
-            
+
             $params[] = $id;
-            $sql = "UPDATE blogs SET " . implode(', ', $updates) . " WHERE id = ?";
+            $sql = 'UPDATE blogs SET ' . implode(', ', $updates) . ' WHERE id = ?';
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
-            
+
             ActivityLog::log('updated', 'blog', (int)$id, ['fields' => array_keys($updates)]);
             sendResponse(200, ['success' => true, 'message' => 'Blog updated']);
             break;
-            
+
         case 'DELETE':
             // Delete blog (admin only)
             requireApiRole(['admin']);
             if (!$id) {
                 sendResponse(400, ['error' => 'Blog ID is required']);
             }
-            
+
             // Get blog title before deleting
-            $stmt = $pdo->prepare("SELECT title FROM blogs WHERE id = ?");
+            $stmt = $pdo->prepare('SELECT title FROM blogs WHERE id = ?');
             $stmt->execute([$id]);
             $blog = $stmt->fetch();
-            
-            $stmt = $pdo->prepare("DELETE FROM blogs WHERE id = ?");
+
+            $stmt = $pdo->prepare('DELETE FROM blogs WHERE id = ?');
             $stmt->execute([$id]);
-            
+
             if ($stmt->rowCount() === 0) {
                 sendResponse(404, ['error' => 'Blog not found']);
             }
-            
+
             ActivityLog::log('deleted', 'blog', (int)$id, ['title' => $blog['title'] ?? 'unknown']);
-            
+
             sendResponse(200, ['success' => true, 'message' => 'Blog deleted']);
             break;
-            
+
         default:
             sendResponse(405, ['error' => 'Method not allowed']);
     }
@@ -352,116 +354,117 @@ function handleBlogs($method, $id, $pdo) {
 /**
  * Handle categories endpoint
  */
-function handleCategories($method, $id, $pdo) {
+function handleCategories($method, $id, $pdo)
+{
     switch ($method) {
         case 'GET':
             if ($id) {
                 // Get single category with its blogs
-                $stmt = $pdo->prepare("SELECT * FROM categories WHERE id = ?");
+                $stmt = $pdo->prepare('SELECT * FROM categories WHERE id = ?');
                 $stmt->execute([$id]);
                 $category = $stmt->fetch();
-                
+
                 if (!$category) {
                     sendResponse(404, ['error' => 'Category not found']);
                 }
-                
+
                 // Get blogs in this category (published only)
                 $blogStmt = $pdo->prepare("SELECT * FROM blogs WHERE category_id = ? AND status = 'published' ORDER BY id DESC");
                 $blogStmt->execute([$id]);
                 $category['blogs'] = $blogStmt->fetchAll();
-                
+
                 setCacheHeaders($category, 60);
                 sendResponse(200, ['success' => true, 'data' => $category]);
             } else {
                 // Get all categories
-                $stmt = $pdo->query("SELECT * FROM categories ORDER BY name");
+                $stmt = $pdo->query('SELECT * FROM categories ORDER BY name');
                 $categories = $stmt->fetchAll();
                 setCacheHeaders($categories, 120);
                 sendResponse(200, ['success' => true, 'data' => $categories]);
             }
             break;
-            
+
         case 'POST':
             // Create new category — CRITICAL-3: whitelist allowed fields
             requireApiRole(['admin', 'editor']);
             $data = json_decode(file_get_contents('php://input'), true);
-            
+
             if (!$data || empty($data['name'])) {
                 sendResponse(400, ['error' => 'Name is required']);
             }
-            
+
             $allowed = ['name', 'description'];
             $data = array_intersect_key($data, array_flip($allowed));
-            
+
             // Sanitize text fields
             $name = strip_tags(trim($data['name']));
             $description = strip_tags(trim($data['description'] ?? ''));
-            
+
             if (empty($name)) {
                 sendResponse(400, ['error' => 'Name cannot be empty after sanitization']);
             }
-            
-            $stmt = $pdo->prepare("INSERT INTO categories (name, description) VALUES (?, ?)");
+
+            $stmt = $pdo->prepare('INSERT INTO categories (name, description) VALUES (?, ?)');
             $stmt->execute([$name, $description]);
-            
+
             $newId = $pdo->lastInsertId();
             sendResponse(201, ['success' => true, 'id' => $newId, 'message' => 'Category created']);
             break;
-            
+
         case 'PUT':
             // Update category
             requireApiRole(['admin', 'editor']);
             if (!$id) {
                 sendResponse(400, ['error' => 'Category ID is required']);
             }
-            
+
             $data = json_decode(file_get_contents('php://input'), true);
-            
+
             if (!$data) {
                 sendResponse(400, ['error' => 'Invalid JSON data']);
             }
-            
+
             // CRITICAL-3: whitelist allowed fields
             $allowed = ['name', 'description'];
             $data = array_intersect_key($data, array_flip($allowed));
-            
+
             // Check if category exists
-            $stmt = $pdo->prepare("SELECT id FROM categories WHERE id = ?");
+            $stmt = $pdo->prepare('SELECT id FROM categories WHERE id = ?');
             $stmt->execute([$id]);
             if (!$stmt->fetch()) {
                 sendResponse(404, ['error' => 'Category not found']);
             }
-            
+
             $name = $data['name'] ?? null;
             $description = $data['description'] ?? null;
-            
+
             if ($name) {
                 $name = strip_tags(trim($name));
                 $description = $description ? strip_tags(trim($description)) : null;
-                $stmt = $pdo->prepare("UPDATE categories SET name = ?, description = ? WHERE id = ?");
+                $stmt = $pdo->prepare('UPDATE categories SET name = ?, description = ? WHERE id = ?');
                 $stmt->execute([$name, $description, $id]);
             }
-            
+
             sendResponse(200, ['success' => true, 'message' => 'Category updated']);
             break;
-            
+
         case 'DELETE':
             // Delete category (admin only)
             requireApiRole(['admin']);
             if (!$id) {
                 sendResponse(400, ['error' => 'Category ID is required']);
             }
-            
-            $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
+
+            $stmt = $pdo->prepare('DELETE FROM categories WHERE id = ?');
             $stmt->execute([$id]);
-            
+
             if ($stmt->rowCount() === 0) {
                 sendResponse(404, ['error' => 'Category not found']);
             }
-            
+
             sendResponse(200, ['success' => true, 'message' => 'Category deleted']);
             break;
-            
+
         default:
             sendResponse(405, ['error' => 'Method not allowed']);
     }
@@ -470,37 +473,38 @@ function handleCategories($method, $id, $pdo) {
 /**
  * Handle file upload
  */
-function handleUpload($method, $pdo) {
+function handleUpload($method, $pdo)
+{
     if ($method !== 'POST') {
         sendResponse(405, ['error' => 'Method not allowed']);
     }
-    
+
     // Check authentication + role (admin and editor may upload)
     Auth::startSession();
     if (!isset($_SESSION['admin']) || !Auth::isSessionValid()) {
         sendResponse(401, ['error' => 'Authentication required']);
     }
     requireApiRole(['admin', 'editor']);
-    
+
     // Check if file was uploaded
     if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
         sendResponse(400, ['error' => 'No file uploaded or upload error']);
     }
-    
+
     $file = $_FILES['file'];
-    
+
     // Validate file size (5MB max)
     $maxSize = 5 * 1024 * 1024;
     if ($file['size'] > $maxSize) {
         sendResponse(400, ['error' => 'File too large. Maximum size is 5MB']);
     }
-    
+
     // Validate image content
     $imageInfo = getimagesize($file['tmp_name']);
     if ($imageInfo === false) {
         sendResponse(400, ['error' => 'Invalid image file']);
     }
-    
+
     // Map MIME to extension
     $mimeToExt = [
         IMAGETYPE_JPEG => 'jpg',
@@ -512,25 +516,25 @@ function handleUpload($method, $pdo) {
     if (!$ext) {
         sendResponse(400, ['error' => 'Unsupported image type']);
     }
-    
+
     // Generate random filename
     $filename = bin2hex(random_bytes(16)) . '.' . $ext;
     $uploadDir = dirname(__DIR__) . '/uploads/';
-    
+
     // Create uploads directory if it doesn't exist
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
-    
+
     $filepath = $uploadDir . $filename;
-    
+
     // Move uploaded file
     if (!move_uploaded_file($file['tmp_name'], $filepath)) {
         sendResponse(500, ['error' => 'Failed to save file']);
     }
-    
+
     $url = '/uploads/' . $filename;
-    
+
     sendResponse(201, [
         'success' => true,
         'url' => $url,
@@ -542,9 +546,10 @@ function handleUpload($method, $pdo) {
 /**
  * Load the current admin's role into the session for role-based checks.
  */
-function loadApiRole($pdo): void {
+function loadApiRole($pdo): void
+{
     if (isset($_SESSION['admin'])) {
-        $stmt = $pdo->prepare("SELECT role FROM admins WHERE username = ? LIMIT 1");
+        $stmt = $pdo->prepare('SELECT role FROM admins WHERE username = ? LIMIT 1');
         $stmt->execute([$_SESSION['admin']]);
         $row = $stmt->fetch();
         $_SESSION['user_role'] = $row['role'] ?? 'editor';
@@ -555,7 +560,8 @@ function loadApiRole($pdo): void {
  * Require the current session to have one of the given roles.
  * Fails with a 403 otherwise. Must be called after authentication.
  */
-function requireApiRole(array $roles): void {
+function requireApiRole(array $roles): void
+{
     $role = $_SESSION['user_role'] ?? null;
     if (!in_array($role, $roles, true)) {
         sendResponse(403, ['error' => 'Insufficient permissions for this action']);
@@ -565,7 +571,8 @@ function requireApiRole(array $roles): void {
 /**
  * Build a clean, client-safe excerpt (no tags, whitespace collapsed).
  */
-function blogExcerpt($content, $len = 260) {
+function blogExcerpt($content, $len = 260)
+{
     $text = trim(preg_replace('/\s+/', ' ', strip_tags((string)$content)));
     return mb_strlen($text) > $len ? mb_substr($text, 0, $len) . '…' : $text;
 }
@@ -573,14 +580,15 @@ function blogExcerpt($content, $len = 260) {
 /**
  * Send JSON response with consistent format
  */
-function sendResponse($statusCode, $data) {
+function sendResponse($statusCode, $data)
+{
     global $requestId;
-    
+
     http_response_code($statusCode);
-    
+
     // Add request_id to all responses
     $data['request_id'] = $requestId;
-    
+
     // For error responses, use consistent error format
     if ($statusCode >= 400 && isset($data['error']) && !is_array($data['error'])) {
         $data['error'] = [
@@ -588,7 +596,7 @@ function sendResponse($statusCode, $data) {
             'message' => $data['error'],
         ];
     }
-    
+
     echo json_encode($data, JSON_PRETTY_PRINT);
     exit;
 }
@@ -596,11 +604,12 @@ function sendResponse($statusCode, $data) {
 /**
  * Set cache headers for GET requests
  */
-function setCacheHeaders($data, $maxAge = 60) {
+function setCacheHeaders($data, $maxAge = 60)
+{
     $etag = '"' . md5(json_encode($data)) . '"';
     header("Cache-Control: public, max-age=$maxAge");
     header("ETag: $etag");
-    
+
     // Check if client has matching ETag
     $clientEtag = $_SERVER['HTTP_IF_NONE_MATCH'] ?? '';
     if ($clientEtag === $etag) {
@@ -612,14 +621,15 @@ function setCacheHeaders($data, $maxAge = 60) {
 /**
  * Handle activity log
  */
-function handleActivity($method) {
+function handleActivity($method)
+{
     if ($method !== 'GET') {
         sendResponse(405, ['error' => 'Method not allowed']);
     }
-    
+
     $limit = (int)($_GET['limit'] ?? 50);
     $limit = min(max($limit, 1), 100);
-    
+
     $activities = \App\Models\ActivityLog::getRecent($limit);
     sendResponse(200, ['success' => true, 'data' => $activities]);
 }
@@ -628,7 +638,8 @@ function handleActivity($method) {
  * Handle passwordless magic link requests.
  * POST /api/magic/request  { "email": "..." }
  */
-function handleMagic($method, $pdo, $rateLimit, $ip) {
+function handleMagic($method, $pdo, $rateLimit, $ip)
+{
     if ($method !== 'POST') {
         sendResponse(405, ['error' => 'Method not allowed']);
     }
@@ -674,7 +685,7 @@ function handleMagic($method, $pdo, $rateLimit, $ip) {
             $email,
             'Your WAM Blog sign in link',
             emailHtml($loginUrl),
-            "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
+            "Open this link to sign in to WAM Blog:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . ' minutes.'
         );
 
         ActivityLog::log('magic_link_sent', 'auth', (int)$user['id'], ['email' => $email]);
@@ -694,7 +705,8 @@ function handleMagic($method, $pdo, $rateLimit, $ip) {
  * sign-in link so the new user can get going immediately. No admin
  * approval is required.
  */
-function handleSignupRequest($method, $pdo, $rateLimit, $ip) {
+function handleSignupRequest($method, $pdo, $rateLimit, $ip)
+{
     if ($method !== 'POST') {
         sendResponse(405, ['error' => 'Method not allowed']);
     }
@@ -736,7 +748,7 @@ function handleSignupRequest($method, $pdo, $rateLimit, $ip) {
             $email,
             'Welcome to WAM Blog — sign in',
             emailHtml($loginUrl),
-            "Welcome to WAM Blog. Open this link to sign in:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
+            "Welcome to WAM Blog. Open this link to sign in:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . ' minutes.'
         );
 
         ActivityLog::log('magic_link_sent', 'auth', (int)$user['id'], ['email' => $email]);
@@ -752,7 +764,8 @@ function handleSignupRequest($method, $pdo, $rateLimit, $ip) {
  * Handle a newsletter subscription.
  * POST /api/newsletter  { "email": "..." }
  */
-function handleNewsletter($method, $pdo, $rateLimit, $ip) {
+function handleNewsletter($method, $pdo, $rateLimit, $ip)
+{
     if ($method !== 'POST') {
         sendResponse(405, ['error' => 'Method not allowed']);
     }
@@ -782,7 +795,8 @@ function handleNewsletter($method, $pdo, $rateLimit, $ip) {
     ]);
 }
 
-function emailHtml(string $loginUrl): string {
+function emailHtml(string $loginUrl): string
+{
     $safeUrl = htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8');
     return '<!DOCTYPE html><html><body style="font-family:Georgia,serif;background:#FBF9F1;color:#2E2910;padding:24px;text-align:center;">'
         . '<h1 style="color:#2C5745;">Sign in to WAM Blog</h1>'
@@ -797,7 +811,8 @@ function emailHtml(string $loginUrl): string {
  * GET  /api/profile              -> fetch username, email, role
  * PUT  /api/profile {username?, email?}
  */
-function handleProfile($method, $pdo) {
+function handleProfile($method, $pdo)
+{
     Auth::startSession();
     if (!isset($_SESSION['admin']) || !Auth::isSessionValid()) {
         sendResponse(401, ['error' => 'Authentication required']);
@@ -807,7 +822,7 @@ function handleProfile($method, $pdo) {
     $username = $_SESSION['admin'];
 
     if ($method === 'GET') {
-        $stmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE username = ? LIMIT 1");
+        $stmt = $pdo->prepare('SELECT id, username, email, role FROM admins WHERE username = ? LIMIT 1');
         $stmt->execute([$username]);
         $user = $stmt->fetch();
         if (!$user) {
@@ -825,7 +840,7 @@ function handleProfile($method, $pdo) {
         sendResponse(400, ['error' => 'Invalid JSON data']);
     }
 
-    $stmt = $pdo->prepare("SELECT * FROM admins WHERE username = ? LIMIT 1");
+    $stmt = $pdo->prepare('SELECT * FROM admins WHERE username = ? LIMIT 1');
     $stmt->execute([$username]);
     $user = $stmt->fetch();
     if (!$user) {
@@ -844,12 +859,12 @@ function handleProfile($method, $pdo) {
             sendResponse(400, ['error' => 'Username must be 1-50 characters']);
         }
         if ($newUsername !== $user['username']) {
-            $dup = $pdo->prepare("SELECT id FROM admins WHERE LOWER(username) = ? AND id != ? LIMIT 1");
+            $dup = $pdo->prepare('SELECT id FROM admins WHERE LOWER(username) = ? AND id != ? LIMIT 1');
             $dup->execute([strtolower($newUsername), $user['id']]);
             if ($dup->fetch()) {
                 sendResponse(400, ['error' => 'Username is already taken']);
             }
-            $updates[] = "username = ?";
+            $updates[] = 'username = ?';
             $params[] = $newUsername;
         }
     }
@@ -860,32 +875,32 @@ function handleProfile($method, $pdo) {
             sendResponse(400, ['error' => 'A valid email address is required']);
         }
         if ($email !== ($user['email'] ?? '')) {
-            $dup = $pdo->prepare("SELECT id FROM admins WHERE LOWER(email) = ? AND id != ? LIMIT 1");
+            $dup = $pdo->prepare('SELECT id FROM admins WHERE LOWER(email) = ? AND id != ? LIMIT 1');
             $dup->execute([$email, $user['id']]);
             if ($dup->fetch()) {
                 sendResponse(400, ['error' => 'Email is already in use']);
             }
-            $updates[] = "email = ?";
+            $updates[] = 'email = ?';
             $params[] = $email;
         }
     }
 
     if ($updates) {
         $params[] = $user['id'];
-        $sql = "UPDATE admins SET " . implode(', ', $updates) . " WHERE id = ?";
+        $sql = 'UPDATE admins SET ' . implode(', ', $updates) . ' WHERE id = ?';
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
 
         if (array_key_exists('username', $data) && in_array('username = ?', $updates)) {
             $_SESSION['admin'] = $params[array_search('username = ?', $updates)];
         }
-        $changes = array_merge($changes, array_map(fn($u) => str_replace(' = ?', '', $u), $updates));
+        $changes = array_merge($changes, array_map(fn ($u) => str_replace(' = ?', '', $u), $updates));
     }
 
     ActivityLog::log('profile_updated', 'admin', (int)$user['id'], ['fields' => $changes]);
 
     // Re-fetch the current profile so the response always reflects the DB.
-    $stmt = $pdo->prepare("SELECT id, username, email, role FROM admins WHERE id = ? LIMIT 1");
+    $stmt = $pdo->prepare('SELECT id, username, email, role FROM admins WHERE id = ? LIMIT 1');
     $stmt->execute([$user['id']]);
     $fresh = $stmt->fetch();
 

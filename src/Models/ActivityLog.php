@@ -19,12 +19,12 @@ class ActivityLog
     public static function log(string $action, string $entityType, ?int $entityId = null, ?array $details = null): void
     {
         $pdo = self::getPdo();
-        
-        $stmt = $pdo->prepare("
+
+        $stmt = $pdo->prepare('
             INSERT INTO activity_log (action, entity_type, entity_id, details, user_ip, user_agent, created_at)
             VALUES (?, ?, ?, ?, ?, ?, NOW())
-        ");
-        
+        ');
+
         $stmt->execute([
             $action,
             $entityType,
@@ -38,7 +38,7 @@ class ActivityLog
     public static function getRecent(int $limit = 50): array
     {
         $pdo = self::getPdo();
-        $stmt = $pdo->prepare("SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?");
+        $stmt = $pdo->prepare('SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?');
         $stmt->execute([$limit]);
         return $stmt->fetchAll();
     }

@@ -66,13 +66,13 @@ jobs:
           DB_USERNAME: postgres
           DB_PASSWORD: postgres
           DB_SSLMODE: prefer
-        run: vendor/bin/phpunit tests/
+        run: vendor/bin/phpunit
 
-      - name: Code Sniff (PHP CodeSniffer)
-        if: false
-        run: |
-          composer global require phpunit/phpunit 2>/dev/null || true
-          # Skipped for simplicity - would need php-cs-fixer installed
+      - name: Static Analysis (PHPStan)
+        run: vendor/bin/phpstan analyse --no-progress
+
+      - name: Code Style (PHP-CS-Fixer)
+        run: vendor/bin/php-cs-fixer check --diff
 
       - name: Lint PHP Files
         run: php -l $(find . -name '*.php' | grep -v vendor | grep -v '.github')

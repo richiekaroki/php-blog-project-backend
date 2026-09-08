@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete'])) {
         Subscriber::removeById((int)$_POST['delete']);
     }
-    header("Location: subscribers.php");
+    header('Location: subscribers.php');
     exit;
 }
 

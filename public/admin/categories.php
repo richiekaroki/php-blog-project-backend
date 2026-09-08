@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // admin/categories.php - Category management with PDO and CSRF protection
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -33,20 +33,20 @@ if (isset($_POST['delete'])) {
     }
 
     $id = (int)$_POST['delete'];
-    $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
+    $stmt = $pdo->prepare('DELETE FROM categories WHERE id = ?');
     $stmt->execute([$id]);
-    header("Location: categories.php");
+    header('Location: categories.php');
     exit;
 }
 
 // Handle form submission (add/edit — admin and editor)
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!$canWrite) {
         http_response_code(403);
         die('Access denied: your role does not permit editing categories.');
     }
 
-    if (!isset($_POST['csrf_token']) || 
+    if (!isset($_POST['csrf_token']) ||
         $_POST['csrf_token'] !== $_SESSION['csrf_token'] ||
         hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']) === false) {
         die('Invalid CSRF token');
@@ -63,7 +63,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             die('Category name is required and must be 50 characters or fewer.');
         }
 
-        $sql = "UPDATE categories SET name = ?, description = ? WHERE id = ?";
+        $sql = 'UPDATE categories SET name = ?, description = ? WHERE id = ?';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$name, $description, $id]);
     } else {
@@ -75,20 +75,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             die('Category name is required and must be 50 characters or fewer.');
         }
 
-        $sql = "INSERT INTO categories (name, description) VALUES (?, ?)";
+        $sql = 'INSERT INTO categories (name, description) VALUES (?, ?)';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$name, $description]);
     }
-    header("Location: categories.php");
+    header('Location: categories.php');
     exit;
 }
 
 // Fetch categories using PDO
-$stmt = $pdo->query("SELECT * FROM categories");
+$stmt = $pdo->query('SELECT * FROM categories');
 $categories = $stmt->fetchAll();
 
 // Quick stats for the welcome band
-$statPosts = (int)$pdo->query("SELECT COUNT(*) FROM blogs")->fetchColumn();
+$statPosts = (int)$pdo->query('SELECT COUNT(*) FROM blogs')->fetchColumn();
 $statCats = count($categories);
 $statRecent = (int)$pdo->query("SELECT COUNT(*) FROM activity_log WHERE created_at >= NOW() - INTERVAL '7 days'")->fetchColumn();
 

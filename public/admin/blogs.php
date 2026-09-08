@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // admin/blogs.php - Blog management with image upload
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -40,12 +40,12 @@ if (isset($_POST['delete'])) {
     }
 
     $id = (int)$_POST['delete'];
-    
+
     // Get image path before deleting
-    $stmt = $pdo->prepare("SELECT image FROM blogs WHERE id = ?");
+    $stmt = $pdo->prepare('SELECT image FROM blogs WHERE id = ?');
     $stmt->execute([$id]);
     $blog = $stmt->fetch();
-    
+
     // Delete image file if exists
     if ($blog && !empty($blog['image'])) {
         $imagePath = __DIR__ . '/../' . $blog['image'];
@@ -53,22 +53,22 @@ if (isset($_POST['delete'])) {
             unlink($imagePath);
         }
     }
-    
+
     // Delete blog from database
-    $stmt = $pdo->prepare("DELETE FROM blogs WHERE id = ?");
+    $stmt = $pdo->prepare('DELETE FROM blogs WHERE id = ?');
     $stmt->execute([$id]);
-    header("Location: blogs.php");
+    header('Location: blogs.php');
     exit;
 }
 
 // Handle form submissions (create/edit â€” admin and editor)
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (!$canWrite) {
         http_response_code(403);
         die('Access denied: your role does not permit writing posts.');
     }
 
-    if (!isset($_POST['csrf_token']) || 
+    if (!isset($_POST['csrf_token']) ||
         $_POST['csrf_token'] !== $_SESSION['csrf_token'] ||
         hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']) === false) {
         die('Invalid CSRF token');
@@ -77,12 +77,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Inline publish/unpublish toggle from the posts table
     if (isset($_POST['toggle_status']) && isset($_POST['blog_id'])) {
         $blogId = (int)$_POST['blog_id'];
-        $stmt = $pdo->prepare("SELECT status FROM blogs WHERE id = ?");
+        $stmt = $pdo->prepare('SELECT status FROM blogs WHERE id = ?');
         $stmt->execute([$blogId]);
         $row = $stmt->fetch();
         if ($row) {
             $newStatus = $row['status'] === 'published' ? 'draft' : 'published';
-            $upd = $pdo->prepare("UPDATE blogs SET status = ? WHERE id = ?");
+            $upd = $pdo->prepare('UPDATE blogs SET status = ? WHERE id = ?');
             $upd->execute([$newStatus, $blogId]);
             // Newly published → tell the newsletter list (best-effort).
             if ($newStatus === 'published' && $row['status'] === 'draft') {
@@ -90,9 +90,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
         $qs = [];
-        if (!empty($_GET['q'])) $qs['q'] = $_GET['q'];
-        if (!empty($_GET['page']) && (int)$_GET['page'] > 1) $qs['page'] = (int)$_GET['page'];
-        header("Location: blogs.php" . ($qs ? '?' . http_build_query($qs) : ''));
+        if (!empty($_GET['q'])) {
+            $qs['q'] = $_GET['q'];
+        }
+        if (!empty($_GET['page']) && (int)$_GET['page'] > 1) {
+            $qs['page'] = (int)$_GET['page'];
+        }
+        header('Location: blogs.php' . ($qs ? '?' . http_build_query($qs) : ''));
         exit;
     }
 
@@ -113,18 +117,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Handle image upload â€” HIGH-1: validate actual content, not just MIME
     if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
         $maxSize = 5 * 1024 * 1024; // 5MB
-        
+
         // Validate file size
         if ($_FILES['image']['size'] > $maxSize) {
             die('File too large. Maximum size is 5MB.');
         }
-        
+
         // HIGH-1: Validate actual image content (not just MIME type)
         $imageInfo = getimagesize($_FILES['image']['tmp_name']);
         if ($imageInfo === false) {
             die('Invalid image file.');
         }
-        
+
         // Map MIME to extension (no user-controlled extension)
         $mimeToExt = [
             IMAGETYPE_JPEG => 'jpg',
@@ -136,11 +140,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if (!$ext) {
             die('Unsupported image type.');
         }
-        
+
         // Generate cryptographically random filename
         $filename = bin2hex(random_bytes(16)) . '.' . $ext;
         $filepath = $uploadDir . $filename;
-        
+
         // Move uploaded file
         if (move_uploaded_file($_FILES['image']['tmp_name'], $filepath)) {
             $imagePath = 'uploads/' . $filename;
@@ -152,13 +156,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['blog_id'])) {
         // Edit blog
         $id = (int)$_POST['blog_id'];
-        
+
         // Get old image path
-        $stmt = $pdo->prepare("SELECT image, status FROM blogs WHERE id = ?");
+        $stmt = $pdo->prepare('SELECT image, status FROM blogs WHERE id = ?');
         $stmt->execute([$id]);
         $oldBlog = $stmt->fetch();
         $oldStatus = $oldBlog['status'] ?? null;
-        
+
         // Delete old image if new one uploaded
         if ($imagePath && $oldBlog && !empty($oldBlog['image'])) {
             $oldImagePath = __DIR__ . '/../' . $oldBlog['image'];
@@ -166,14 +170,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 unlink($oldImagePath);
             }
         }
-        
+
         // Update blog
         if ($imagePath) {
-            $sql = "UPDATE blogs SET title = ?, content = ?, image = ?, category_id = ? WHERE id = ?";
+            $sql = 'UPDATE blogs SET title = ?, content = ?, image = ?, category_id = ? WHERE id = ?';
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$title, $content, $imagePath, $category_id, $id]);
         } else {
-            $sql = "UPDATE blogs SET title = ?, content = ?, category_id = ? WHERE id = ?";
+            $sql = 'UPDATE blogs SET title = ?, content = ?, category_id = ? WHERE id = ?';
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$title, $content, $category_id, $id]);
         }
@@ -182,7 +186,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         }
     } else {
         // Create new blog
-        $sql = "INSERT INTO blogs (title, content, image, category_id, status) VALUES (?, ?, ?, ?, ?)";
+        $sql = 'INSERT INTO blogs (title, content, image, category_id, status) VALUES (?, ?, ?, ?, ?)';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$title, $content, $imagePath, $category_id, $status]);
         if ($status === 'published') {
@@ -190,7 +194,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             \App\Models\Subscriber::notifyNewPost(['id' => $newId, 'title' => $title, 'content' => $content]);
         }
     }
-    header("Location: blogs.php");
+    header('Location: blogs.php');
     exit;
 }
 
@@ -202,28 +206,28 @@ $perPage = 10;
 $where = '';
 $params = [];
 if ($search !== '') {
-    $where = " WHERE b.title ILIKE ? OR b.content ILIKE ?";
+    $where = ' WHERE b.title ILIKE ? OR b.content ILIKE ?';
     $params = ['%' . $search . '%', '%' . $search . '%'];
 }
 
-$countStmt = $pdo->prepare("SELECT COUNT(*) FROM blogs b" . $where);
+$countStmt = $pdo->prepare('SELECT COUNT(*) FROM blogs b' . $where);
 $countStmt->execute($params);
 $totalBlogs = (int)$countStmt->fetchColumn();
 $totalPages = max(1, (int)ceil($totalBlogs / $perPage));
 $page = min($page, $totalPages);
 $offset = ($page - 1) * $perPage;
 
-$stmt = $pdo->prepare("SELECT b.*, c.name AS category_name FROM blogs b LEFT JOIN categories c ON b.category_id = c.id" . $where . " ORDER BY b.id DESC LIMIT $perPage OFFSET $offset");
+$stmt = $pdo->prepare('SELECT b.*, c.name AS category_name FROM blogs b LEFT JOIN categories c ON b.category_id = c.id' . $where . " ORDER BY b.id DESC LIMIT $perPage OFFSET $offset");
 $stmt->execute($params);
 $blogs = $stmt->fetchAll();
 
 // Fetch categories for form
-$catStmt = $pdo->query("SELECT * FROM categories");
+$catStmt = $pdo->query('SELECT * FROM categories');
 $categories = $catStmt->fetchAll();
 
 // Quick stats for the welcome band
 $statPosts = (int)$pdo->query("SELECT COUNT(*) FROM blogs WHERE status = 'published'")->fetchColumn();
-$statCats = (int)$pdo->query("SELECT COUNT(*) FROM categories")->fetchColumn();
+$statCats = (int)$pdo->query('SELECT COUNT(*) FROM categories')->fetchColumn();
 $statRecent = (int)$pdo->query("SELECT COUNT(*) FROM activity_log WHERE created_at >= NOW() - INTERVAL '7 days'")->fetchColumn();
 
 $hour = (int)date('G');

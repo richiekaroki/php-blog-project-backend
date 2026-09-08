@@ -1,0 +1,10 @@
+parameters:
+    level: 5
+    paths:
+        - src
+        - bin
+        - public
+        - tests
+    excludePaths:
+        - public/uploads (?)
+    treatPhpDocTypesAsCertain: false

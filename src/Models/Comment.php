@@ -96,23 +96,23 @@ class Comment
     {
         $pdo = Connection::getInstance();
         if ($status !== null && in_array($status, ['pending', 'approved'], true)) {
-            $stmt = $pdo->prepare("
+            $stmt = $pdo->prepare('
                 SELECT c.*, b.title AS blog_title
                 FROM comments c
                 LEFT JOIN blogs b ON c.blog_id = b.id
                 WHERE c.status = ?
                 ORDER BY c.created_at DESC, c.id DESC
                 LIMIT ?
-            ");
+            ');
             $stmt->execute([$status, $limit]);
         } else {
-            $stmt = $pdo->prepare("
+            $stmt = $pdo->prepare('
                 SELECT c.*, b.title AS blog_title
                 FROM comments c
                 LEFT JOIN blogs b ON c.blog_id = b.id
                 ORDER BY c.created_at DESC, c.id DESC
                 LIMIT ?
-            ");
+            ');
             $stmt->execute([$limit]);
         }
         return $stmt->fetchAll();
@@ -139,7 +139,7 @@ class Comment
     public static function delete(int $id): bool
     {
         $pdo = Connection::getInstance();
-        $stmt = $pdo->prepare("DELETE FROM comments WHERE id = ?");
+        $stmt = $pdo->prepare('DELETE FROM comments WHERE id = ?');
         $stmt->execute([$id]);
         $ok = $stmt->rowCount() > 0;
         if ($ok) {
@@ -151,7 +151,7 @@ class Comment
     private static function postTitle(int $blogId): string
     {
         $pdo = Connection::getInstance();
-        $stmt = $pdo->prepare("SELECT title FROM blogs WHERE id = ?");
+        $stmt = $pdo->prepare('SELECT title FROM blogs WHERE id = ?');
         $stmt->execute([$blogId]);
         $row = $stmt->fetch();
         return $row['title'] ?? '';

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // admin/activity.php - Activity feed: sign-ins, 2FA changes, session & content events
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -143,16 +143,16 @@ $typeColors = [
                         <?php foreach ($activities as $a): ?>
                             <?php
                                 $action = $a['action'] ?? 'unknown';
-                                $label = $eventLabels[$action] ?? [$action, 'admin'];
-                                $labelText = $label[0];
-                                $type = $label[1];
-                                $color = $typeColors[$type] ?? 'rgba(44,87,69,0.1)';
-                                $details = $a['details'] ?? null;
-                                $detailsText = is_string($details) ? $details : (is_array($details) ? json_encode($details) : '');
-                                $ip = $a['user_ip'] ?? null;
-                                $entity = $a['entity_type'] ?? '';
-                                // A 2FA-enabled magic-link sign-in carries details {"2fa": true}.
-                                $via2fa = $action === 'magic_link_used' && str_contains($detailsText, '"2fa":true');
+                            $label = $eventLabels[$action] ?? [$action, 'admin'];
+                            $labelText = $label[0];
+                            $type = $label[1];
+                            $color = $typeColors[$type];
+                            $details = $a['details'] ?? null;
+                            $detailsText = is_string($details) ? $details : (is_array($details) ? json_encode($details) : '');
+                            $ip = $a['user_ip'] ?? null;
+                            $entity = $a['entity_type'] ?? '';
+                            // A 2FA-enabled magic-link sign-in carries details {"2fa": true}.
+                            $via2fa = $action === 'magic_link_used' && str_contains($detailsText, '"2fa":true');
                             ?>
                             <div class="event-row">
                                 <div class="event-dot" style="background: <?php echo $color; ?>;"></div>
@@ -174,8 +174,8 @@ $typeColors = [
                                         &nbsp;·&nbsp;
                                         <?php
                                             $ts = new DateTime($a['created_at']);
-                                            echo $ts->format('M j, Y g:i A');
-                                        ?>
+                            echo $ts->format('M j, Y g:i A');
+                            ?>
                                     </div>
                                     <?php if ($detailsText !== ''): ?>
                                         <div class="event-details"><?php echo htmlspecialchars($detailsText, ENT_QUOTES, 'UTF-8'); ?></div>

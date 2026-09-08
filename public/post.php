@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // post.php - Display single blog post
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
@@ -18,7 +18,7 @@ CSRF::init();
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 
 if (!$id) {
-    header("Location: index.php");
+    header('Location: index.php');
     exit;
 }
 
@@ -33,7 +33,7 @@ $stmt->execute([$id]);
 $post = $stmt->fetch();
 
 if (!$post) {
-    header("Location: index.php");
+    header('Location: index.php');
     exit;
 }
 
@@ -67,17 +67,17 @@ $approvedComments = Comment::approvedFor((int)$post['id']);
 $newsFlash = isset($_GET['subscribed']) ? 'subscribed' : (isset($_GET['subscribe_error']) ? 'error' : null);
 
 // Count this read (fire-and-forget; drafts are never reached here)
-$pdo->prepare("UPDATE blogs SET views = views + 1 WHERE id = ?")->execute([$id]);
+$pdo->prepare('UPDATE blogs SET views = views + 1 WHERE id = ?')->execute([$id]);
 
 // Fetch related posts (same category, excluding current)
-$relatedStmt = $pdo->prepare("
+$relatedStmt = $pdo->prepare('
     SELECT blogs.id, blogs.title, blogs.image, categories.name AS category_name
     FROM blogs
     JOIN categories ON blogs.category_id = categories.id
     WHERE blogs.category_id = ? AND blogs.id != ?
     ORDER BY blogs.id DESC
     LIMIT 3
-");
+');
 $relatedStmt->execute([$post['category_id'], $id]);
 $relatedPosts = $relatedStmt->fetchAll();
 

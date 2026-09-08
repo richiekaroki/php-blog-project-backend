@@ -23,7 +23,7 @@ class Mailer
     {
         $config = array_merge([
             'host' => self::env('MAIL_HOST', 'smtp-relay.brevo.com'),
-            'port' => (int)self::env('MAIL_PORT', 587),
+            'port' => (int)self::env('MAIL_PORT', '587'),
             'username' => self::env('MAIL_USERNAME', ''),
             'password' => self::env('MAIL_PASSWORD', ''),
             'from_address' => self::env('MAIL_FROM_ADDRESS', 'noreply@wamblog.com'),
@@ -73,7 +73,7 @@ class Mailer
         try {
             $this->expect($socket, '220');
 
-            $this->command($socket, "EHLO " . (gethostname() ?: 'localhost'));
+            $this->command($socket, 'EHLO ' . (gethostname() ?: 'localhost'));
             $this->readMultiline($socket);
 
             // STARTTLS
@@ -84,7 +84,7 @@ class Mailer
                 throw new \RuntimeException('Failed to enable STARTTLS encryption.');
             }
 
-            $this->command($socket, "EHLO " . (gethostname() ?: 'localhost'));
+            $this->command($socket, 'EHLO ' . (gethostname() ?: 'localhost'));
             $this->readMultiline($socket);
 
             // AUTH LOGIN

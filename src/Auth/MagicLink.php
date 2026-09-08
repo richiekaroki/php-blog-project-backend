@@ -16,7 +16,7 @@ class MagicLink
     public function __construct(?string $secret = null)
     {
         $secret = $secret ?: self::appKey();
-        if ($secret === '' || $secret === null) {
+        if ($secret === '') {
             throw new \RuntimeException('APP_KEY is required to sign magic links.');
         }
         // Support base64: prefixed keys (Laravel-style) and raw keys.
@@ -79,7 +79,7 @@ class MagicLink
         }
 
         $stmt = $pdo->prepare(
-            "INSERT INTO magic_link_uses (token_hash, email) VALUES (?, ?) ON CONFLICT (token_hash) DO NOTHING"
+            'INSERT INTO magic_link_uses (token_hash, email) VALUES (?, ?) ON CONFLICT (token_hash) DO NOTHING'
         );
         $stmt->execute([self::tokenHash($token), $email]);
 

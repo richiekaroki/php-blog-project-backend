@@ -6,7 +6,6 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 use App\Database\Connection;
 use App\Middleware\Auth;
 use App\Middleware\CSRF;
-use App\Models\Comment;
 
 Auth::check();
 $pdo = Connection::getInstance();
@@ -16,9 +15,9 @@ $currentRole = Auth::getRole() ?? 'viewer';
 
 // Totals
 $statPosts = (int)$pdo->query("SELECT COUNT(*) FROM blogs WHERE status = 'published'")->fetchColumn();
-$statViews = (int)$pdo->query("SELECT COALESCE(SUM(views), 0) FROM blogs")->fetchColumn();
+$statViews = (int)$pdo->query('SELECT COALESCE(SUM(views), 0) FROM blogs')->fetchColumn();
 $statComments = (int)$pdo->query("SELECT COUNT(*) FROM comments WHERE status = 'approved'")->fetchColumn();
-$statSubs = (int)$pdo->query("SELECT COUNT(*) FROM subscribers")->fetchColumn();
+$statSubs = (int)$pdo->query('SELECT COUNT(*) FROM subscribers')->fetchColumn();
 
 // Top posts by reads
 $topPosts = $pdo->query("
@@ -53,7 +52,9 @@ $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good
 $greetingName = Auth::currentUsername() ?? 'author';
 $roleLabel = ucfirst($currentRole);
 $maxViews = 1;
-foreach ($topPosts as $t) { $maxViews = max($maxViews, (int)$t['views']); }
+foreach ($topPosts as $t) {
+    $maxViews = max($maxViews, (int)$t['views']);
+}
 ?>
 
 <!DOCTYPE html>

@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // admin/users.php - User management (admin only)
 // Admins change user roles and delete users. Accounts are self-served at
 // /signup.php (any email becomes an editor), so no approval is needed here.
@@ -15,7 +15,7 @@ $pdo = Connection::getInstance();
 CSRF::init();
 
 // Current admin id for protecting the last remaining admin.
-$me = $pdo->prepare("SELECT id, role FROM admins WHERE username = ?");
+$me = $pdo->prepare('SELECT id, role FROM admins WHERE username = ?');
 $me->execute([$_SESSION['admin']]);
 $currentAdmin = $me->fetch();
 
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($newRole, ['admin', 'editor', 'viewer'], true)) {
             $error = 'Invalid role.';
         } else {
-            $stmt = $pdo->prepare("SELECT id, username, role FROM admins WHERE id = ? LIMIT 1");
+            $stmt = $pdo->prepare('SELECT id, username, role FROM admins WHERE id = ? LIMIT 1');
             $stmt->execute([$userId]);
             $target = $stmt->fetch();
             if (!$target) {
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 if (!$error) {
-                    $upd = $pdo->prepare("UPDATE admins SET role = ? WHERE id = ?");
+                    $upd = $pdo->prepare('UPDATE admins SET role = ? WHERE id = ?');
                     $upd->execute([$newRole, $userId]);
                     ActivityLog::log('role_changed', 'admin', $userId, ['user' => $target['username'], 'from' => $target['role'], 'to' => $newRole, 'by' => $_SESSION['admin']]);
                     $success = 'Updated role for ' . $target['username'] . ' to ' . $newRole . '.';
@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif (isset($_POST['delete_user'])) {
         $userId = (int)$_POST['user_id'];
-        $stmt = $pdo->prepare("SELECT id, username, role FROM admins WHERE id = ? LIMIT 1");
+        $stmt = $pdo->prepare('SELECT id, username, role FROM admins WHERE id = ? LIMIT 1');
         $stmt->execute([$userId]);
         $target = $stmt->fetch();
         if (!$target) {
@@ -72,8 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if (!$error) {
             try {
-                $pdo->prepare("DELETE FROM auth_sessions WHERE admin_id = ?")->execute([$userId]);
-                $pdo->prepare("DELETE FROM admins WHERE id = ?")->execute([$userId]);
+                $pdo->prepare('DELETE FROM auth_sessions WHERE admin_id = ?')->execute([$userId]);
+                $pdo->prepare('DELETE FROM admins WHERE id = ?')->execute([$userId]);
                 ActivityLog::log('user_deleted', 'admin', $userId, ['user' => $target['username'], 'by' => $_SESSION['admin']]);
                 $success = 'Deleted user ' . $target['username'] . '.';
             } catch (\Throwable $e) {
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // All users
-$users = $pdo->query("SELECT id, username, email, role, totp_secret FROM admins ORDER BY id ASC")->fetchAll(PDO::FETCH_ASSOC);
+$users = $pdo->query('SELECT id, username, email, role, totp_secret FROM admins ORDER BY id ASC')->fetchAll(PDO::FETCH_ASSOC);
 ?>
 <!DOCTYPE html>
 <html lang="en">

@@ -1,4 +1,5 @@
 <?php
+
 // public/inc/post-format.php
 // Lightweight, safe post renderer. All author text is escaped before any
 // generated tag is added, so rendered output never contains author HTML.

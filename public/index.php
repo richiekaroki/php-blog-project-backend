@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // index.php - Blog homepage with pagination, search, category filtering
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
@@ -32,19 +32,19 @@ $where = [];
 $params = [];
 
 if ($search !== '') {
-    $where[] = "(blogs.title ILIKE ? OR blogs.content ILIKE ?)";
+    $where[] = '(blogs.title ILIKE ? OR blogs.content ILIKE ?)';
     $params[] = "%$search%";
     $params[] = "%$search%";
 }
 if ($categoryId > 0) {
-    $where[] = "blogs.category_id = ?";
+    $where[] = 'blogs.category_id = ?';
     $params[] = $categoryId;
 }
 
 // Only published posts appear on the public site (drafts are write-ahead work).
 $where[] = "blogs.status = 'published'";
 
-$whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+$whereClause = 'WHERE ' . implode(' AND ', $where);
 
 // Count total posts
 $countSql = "SELECT COUNT(*) FROM blogs $whereClause";
@@ -66,7 +66,7 @@ $stmt->execute($allParams);
 $posts = $stmt->fetchAll();
 
 // Fetch all categories for filter dropdown
-$catStmt = $pdo->query("SELECT id, name FROM categories ORDER BY name");
+$catStmt = $pdo->query('SELECT id, name FROM categories ORDER BY name');
 $categories = $catStmt->fetchAll();
 ?>
 <!DOCTYPE html>

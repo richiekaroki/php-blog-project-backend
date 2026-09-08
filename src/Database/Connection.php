@@ -40,8 +40,12 @@ class Connection
             // (Neon recommends channel_binding=require for SCRAM connections).
             if (isset($dbUrl['query'])) {
                 parse_str($dbUrl['query'], $q);
-                if (!empty($q['sslmode'])) $sslmode = $q['sslmode'];
-                if (!empty($q['channel_binding'])) $channelBinding = $q['channel_binding'];
+                if (!empty($q['sslmode'])) {
+                    $sslmode = $q['sslmode'];
+                }
+                if (!empty($q['channel_binding'])) {
+                    $channelBinding = $q['channel_binding'];
+                }
             }
         } elseif ($dbHost) {
             $host = $dbHost;
@@ -72,7 +76,7 @@ class Connection
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ]);
-            $pdo->query("SELECT 1");
+            $pdo->query('SELECT 1');
             return $pdo;
         } catch (PDOException $e) {
             error_log('Database connection failed: ' . $e->getMessage());

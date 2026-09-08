@@ -1,12 +1,12 @@
-﻿<?php
+<?php
 // admin/profile.php - Account settings: profile info, TOTP 2FA, active sessions
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
+use App\Auth\Totp;
 use App\Database\Connection;
 use App\Middleware\Auth;
 use App\Middleware\CSRF;
-use App\Auth\Totp;
 use App\Models\ActivityLog;
 
 Auth::check();
@@ -15,13 +15,13 @@ CSRF::init();
 
 $username = $_SESSION['admin'];
 
-$stmt = $pdo->prepare("SELECT id, username, email, role, totp_secret FROM admins WHERE username = ? LIMIT 1");
+$stmt = $pdo->prepare('SELECT id, username, email, role, totp_secret FROM admins WHERE username = ? LIMIT 1');
 $stmt->execute([$username]);
 $user = $stmt->fetch();
 
 if (!$user) {
     Auth::logout();
-    header("Location: login.php");
+    header('Location: login.php');
     exit;
 }
 
@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'confi
     } elseif (!Totp::verify($pendingSecret, $_POST['code'] ?? '')) {
         $error = 'Invalid verification code. Please try again.';
     } else {
-        $stmt = $pdo->prepare("UPDATE admins SET totp_secret = ? WHERE id = ?");
+        $stmt = $pdo->prepare('UPDATE admins SET totp_secret = ? WHERE id = ?');
         $stmt->execute([$pendingSecret, $user['id']]);
         unset($_SESSION['pending_totp_secret']);
         $pendingSecret = null;
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'disab
     } elseif (!Totp::verify($user['totp_secret'], $_POST['code'] ?? '')) {
         $error = 'Invalid verification code. Your 2FA was not disabled.';
     } else {
-        $stmt = $pdo->prepare("UPDATE admins SET totp_secret = NULL WHERE id = ?");
+        $stmt = $pdo->prepare('UPDATE admins SET totp_secret = NULL WHERE id = ?');
         $stmt->execute([$user['id']]);
         $user['totp_secret'] = null;
         $message = 'Two-factor authentication has been disabled.';
@@ -97,8 +97,8 @@ if (empty($user['totp_secret'])) {
 $sessions = [];
 if (!empty($user['id'])) {
     $stmt = $pdo->prepare(
-        "SELECT id, session_token_hash, ip, user_agent, created_at, expires_at, revoked_at
-         FROM auth_sessions WHERE admin_id = ? ORDER BY created_at DESC"
+        'SELECT id, session_token_hash, ip, user_agent, created_at, expires_at, revoked_at
+         FROM auth_sessions WHERE admin_id = ? ORDER BY created_at DESC'
     );
     $stmt->execute([$user['id']]);
     $sessions = $stmt->fetchAll();
@@ -237,8 +237,8 @@ if (!empty($user['id'])) {
                                 <div class="secret-box">
                                     <?php
                                         $uri = Totp::provisioningUri($pendingSecret, $user['email'] ?? $user['username'], 'WAM Blog');
-                                        echo htmlspecialchars($uri, ENT_QUOTES, 'UTF-8');
-                                    ?>
+                                echo htmlspecialchars($uri, ENT_QUOTES, 'UTF-8');
+                                ?>
                                 </div>
                                 <form method="POST" action="profile.php">
                                     <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
@@ -299,8 +299,8 @@ if (!empty($user['id'])) {
                                     <div>
                                         <div>
                                             <?php
-                                                $isCurrent = hash_equals(hash('sha256', session_id()), (string)$s['session_token_hash']);
-                                            ?>
+                                            $isCurrent = hash_equals(hash('sha256', session_id()), (string)$s['session_token_hash']);
+                                ?>
                                             <?php if ($s['revoked_at'] !== null): ?>
                                                 <span class="session-tag" style="color: var(--destructive);">Revoked</span>
                                             <?php elseif ($isCurrent): ?>
@@ -317,9 +317,9 @@ if (!empty($user['id'])) {
                                     </div>
                                     <div class="session-meta">
                                         <?php
-                                            $created = new DateTime($s['created_at']);
-                                            echo 'Signed in ' . $created->format('M j, Y g:i A');
-                                        ?>
+                                $created = new DateTime($s['created_at']);
+                                echo 'Signed in ' . $created->format('M j, Y g:i A');
+                                ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>

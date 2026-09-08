@@ -35,7 +35,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
 <?php foreach ($posts as $p):
     $link = $base . '/post.php?id=' . $p['id'];
     $date = date(DATE_RSS, strtotime($p['created_at'] ?: 'now'));
-?>
+    ?>
 <item>
 <title><?php echo htmlspecialchars($p['title'], ENT_XML1, 'UTF-8'); ?></title>
 <link><?php echo $link; ?></link>

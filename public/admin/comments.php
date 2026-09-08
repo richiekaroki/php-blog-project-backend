@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (isset($_POST['delete'])) {
         Comment::delete((int)$_POST['delete']);
     }
-    header("Location: comments.php" . (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'approved'], true) ? '?status=' . $_GET['status'] : ''));
+    header('Location: comments.php' . (isset($_GET['status']) && in_array($_GET['status'], ['pending', 'approved'], true) ? '?status=' . $_GET['status'] : ''));
     exit;
 }
 

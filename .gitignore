@@ -12,6 +12,8 @@
 
 # PHP
 composer.phar
+/.phpunit.cache/
+/.php-cs-fixer.cache
 
 # IDE
 .idea/

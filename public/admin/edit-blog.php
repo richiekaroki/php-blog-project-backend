@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 // admin/edit-blog.php - Edit blog with PDO and CSRF protection
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
@@ -19,25 +19,25 @@ if (!in_array(Auth::getRole() ?? '', ['admin', 'editor'], true)) {
 
 // Existing code for blog editing...
 if (!isset($_GET['id'])) {
-    die("Blog ID is required.");
+    die('Blog ID is required.');
 }
 
 $blog_id = $_GET['id'];
 
 // Fetch blog details using PDO prepared statement
-$sql = "SELECT * FROM blogs WHERE id = ?";
+$sql = 'SELECT * FROM blogs WHERE id = ?';
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$blog_id]);
 $blog = $stmt->fetch();
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (!isset($_POST['csrf_token']) || 
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    if (!isset($_POST['csrf_token']) ||
         $_POST['csrf_token'] !== $_SESSION['csrf_token'] ||
         hash_equals($_SESSION['csrf_token'], $_POST['csrf_token']) === false) {
         die('Invalid CSRF token');
     }
 
-$title = trim((string)($_POST['title'] ?? ''));
+    $title = trim((string)($_POST['title'] ?? ''));
     $content = trim((string)($_POST['content'] ?? ''));
     $status = in_array($_POST['status'] ?? 'published', ['published', 'draft'], true) ? $_POST['status'] : 'published';
 
@@ -88,11 +88,11 @@ $title = trim((string)($_POST['title'] ?? ''));
     }
 
     if ($imagePath) {
-        $sql = "UPDATE blogs SET title = ?, content = ?, status = ?, image = ? WHERE id = ?";
+        $sql = 'UPDATE blogs SET title = ?, content = ?, status = ?, image = ? WHERE id = ?';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$title, $content, $status, $imagePath, $blog_id]);
     } else {
-        $sql = "UPDATE blogs SET title = ?, content = ?, status = ? WHERE id = ?";
+        $sql = 'UPDATE blogs SET title = ?, content = ?, status = ? WHERE id = ?';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$title, $content, $status, $blog_id]);
     }
@@ -103,7 +103,7 @@ $title = trim((string)($_POST['title'] ?? ''));
         \App\Models\Subscriber::notifyNewPost(['id' => (int)$blog_id, 'title' => $title, 'content' => $content]);
     }
 
-    header("Location: blogs.php");
+    header('Location: blogs.php');
     exit;
 }
 ?>

@@ -1,14 +1,14 @@
-﻿<?php
+<?php
 // signup.php - Public sign-up (passwordless)
 // Any email gets an account (editor role) and a sign-in link immediately.
 // No admin approval is required.
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-use App\Middleware\RateLimit;
-use App\Models\Invitation;
 use App\Auth\MagicLink;
 use App\Mail\Mailer;
+use App\Middleware\RateLimit;
+use App\Models\Invitation;
 use App\Support\Env;
 
 // Rate limit signup requests by IP (5 per 15 minutes) to prevent abuse.
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $email,
                         'Welcome to WAM Blog — sign in',
                         $htmlBody,
-                        "Welcome to WAM Blog. Open this link to sign in:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . " minutes."
+                        "Welcome to WAM Blog. Open this link to sign in:\n\n$loginUrl\n\nThis link expires in " . round($ttl / 60) . ' minutes.'
                     );
                     $sent = true;
                 }

@@ -44,7 +44,7 @@ class Auth
         }
 
         $pdo = Connection::getInstance();
-        $stmt = $pdo->prepare("SELECT id, role FROM admins WHERE username = ?");
+        $stmt = $pdo->prepare('SELECT id, role FROM admins WHERE username = ?');
         $stmt->execute([$_SESSION['admin']]);
         $user = $stmt->fetch();
 
@@ -68,10 +68,10 @@ class Auth
         try {
             $pdo = Connection::getInstance();
             $stmt = $pdo->prepare(
-                "SELECT s.revoked_at, s.expires_at, s.session_token_hash
+                'SELECT s.revoked_at, s.expires_at, s.session_token_hash
                  FROM auth_sessions s
                  JOIN admins a ON a.id = s.admin_id
-                 WHERE s.session_token_hash = ? AND a.username = ?"
+                 WHERE s.session_token_hash = ? AND a.username = ?'
             );
             $stmt->execute([self::sessionTokenHash(), $_SESSION['admin']]);
             $row = $stmt->fetch();
@@ -113,7 +113,7 @@ class Auth
     public static function registerSession(string $username, int $lifetimeSeconds = 604800): void
     {
         $pdo = Connection::getInstance();
-        $stmt = $pdo->prepare("SELECT id FROM admins WHERE username = ?");
+        $stmt = $pdo->prepare('SELECT id FROM admins WHERE username = ?');
         $stmt->execute([$username]);
         $admin = $stmt->fetch();
         if (!$admin) {
@@ -125,8 +125,8 @@ class Auth
         session_regenerate_id(true);
 
         $stmt = $pdo->prepare(
-            "INSERT INTO auth_sessions (admin_id, session_token_hash, ip, user_agent, expires_at)
-             VALUES (?, ?, ?, ?, ?)"
+            'INSERT INTO auth_sessions (admin_id, session_token_hash, ip, user_agent, expires_at)
+             VALUES (?, ?, ?, ?, ?)'
         );
         $stmt->execute([
             (int)$admin['id'],
@@ -148,7 +148,7 @@ class Auth
 
         try {
             $pdo = Connection::getInstance();
-            $stmt = $pdo->prepare("UPDATE auth_sessions SET revoked_at = NOW() WHERE session_token_hash = ? AND revoked_at IS NULL");
+            $stmt = $pdo->prepare('UPDATE auth_sessions SET revoked_at = NOW() WHERE session_token_hash = ? AND revoked_at IS NULL');
             $stmt->execute([self::sessionTokenHash()]);
         } catch (\Throwable $e) {
             error_log('Auth::logout session revoke failed: ' . $e->getMessage());
@@ -175,9 +175,9 @@ class Auth
 
         $pdo = Connection::getInstance();
         $stmt = $pdo->prepare(
-            "UPDATE auth_sessions s SET revoked_at = NOW()
+            'UPDATE auth_sessions s SET revoked_at = NOW()
              FROM admins a
-             WHERE a.id = s.admin_id AND a.username = ? AND s.session_token_hash <> ? AND s.revoked_at IS NULL"
+             WHERE a.id = s.admin_id AND a.username = ? AND s.session_token_hash <> ? AND s.revoked_at IS NULL'
         );
         $stmt->execute([$username, self::sessionTokenHash()]);
         return $stmt->rowCount();
@@ -206,7 +206,7 @@ class Auth
             $pdo = Connection::getInstance();
             $email = Env::get('DEV_ADMIN_EMAIL', 'dev@local.test');
 
-            $stmt = $pdo->prepare("SELECT id, username, role FROM admins WHERE LOWER(email) = ? LIMIT 1");
+            $stmt = $pdo->prepare('SELECT id, username, role FROM admins WHERE LOWER(email) = ? LIMIT 1');
             $stmt->execute([$email]);
             $admin = $stmt->fetch();
 
@@ -242,7 +242,7 @@ class Auth
 
     private static function redirectToLogin(): void
     {
-        header("Location: login.php");
+        header('Location: login.php');
         exit;
     }
 }

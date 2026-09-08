@@ -1,4 +1,5 @@
 <?php
+
 // tests/BlogTest.php - Comprehensive test suite for blog backend
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -14,15 +15,18 @@ class BlogTest extends TestCase
     {
         // Load environment variables
         $env = [];
-        $lines = file(__DIR__ . '/../.env');
+        $envPath = __DIR__ . '/../.env';
+        $lines = is_readable($envPath) ? file($envPath) : [];
         foreach ($lines as $line) {
             $line = trim($line);
-            if ($line === '' || $line[0] === '#') continue;
+            if ($line === '' || $line[0] === '#') {
+                continue;
+            }
             $parts = explode('=', $line, 2);
             if (count($parts) === 2) {
                 $key = trim($parts[0]);
                 $value = trim($parts[1]);
-                if (strlen($value) >= 2 && $value[0] === '"' && $value[strlen($value)-1] === '"') {
+                if (strlen($value) >= 2 && $value[0] === '"' && $value[strlen($value) - 1] === '"') {
                     $value = substr($value, 1, -1);
                 }
                 $env[$key] = $value;
@@ -61,21 +65,21 @@ class BlogTest extends TestCase
 
     public function testAdminsTableExists()
     {
-        $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM admins");
+        $stmt = $this->pdo->query('SELECT COUNT(*) AS count FROM admins');
         $row = $stmt->fetch();
         $this->assertGreaterThanOrEqual(0, $row['count']);
     }
 
     public function testCategoriesTableExists()
     {
-        $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM categories");
+        $stmt = $this->pdo->query('SELECT COUNT(*) AS count FROM categories');
         $row = $stmt->fetch();
         $this->assertGreaterThanOrEqual(0, $row['count']);
     }
 
     public function testBlogsTableExists()
     {
-        $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM blogs");
+        $stmt = $this->pdo->query('SELECT COUNT(*) AS count FROM blogs');
         $row = $stmt->fetch();
         $this->assertGreaterThanOrEqual(0, $row['count']);
     }
@@ -230,20 +234,20 @@ class BlogTest extends TestCase
     public function testPreparedStatementsPreventSqlInjection()
     {
         $malicious = "'; DROP TABLE blogs; --";
-        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE title = ?");
+        $stmt = $this->pdo->prepare('SELECT * FROM blogs WHERE title = ?');
         $stmt->execute([$malicious]);
         $result = $stmt->fetchAll();
         $this->assertIsArray($result);
         $this->assertCount(0, $result);
         // Verify blogs table still exists
-        $check = $this->pdo->query("SELECT COUNT(*) FROM blogs");
+        $check = $this->pdo->query('SELECT COUNT(*) FROM blogs');
         $this->assertNotEmpty($check->fetch());
     }
 
     public function testSearchParameterizedQuery()
     {
         $malicious = "1' OR '1'='1";
-        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE title ILIKE ?");
+        $stmt = $this->pdo->prepare('SELECT * FROM blogs WHERE title ILIKE ?');
         $stmt->execute(["%$malicious%"]);
         $result = $stmt->fetchAll();
         $this->assertIsArray($result);
@@ -319,7 +323,9 @@ class BlogTest extends TestCase
         ini_set('session.cookie_httponly', 1);
         ini_set('session.cookie_samesite', 'Lax');
         ini_set('session.use_strict_mode', 1);
-        $this->assertTrue(true); // If we got here, settings are valid
+        $this->assertSame('1', ini_get('session.cookie_httponly'));
+        $this->assertSame('Lax', ini_get('session.cookie_samesite'));
+        $this->assertSame('1', ini_get('session.use_strict_mode'));
     }
 
     // ==========================================
@@ -363,71 +369,71 @@ class BlogTest extends TestCase
     public function testCreateBlog()
     {
         // Create a category first (for foreign key)
-        $catStmt = $this->pdo->prepare("INSERT INTO categories (name) VALUES (?) RETURNING id");
+        $catStmt = $this->pdo->prepare('INSERT INTO categories (name) VALUES (?) RETURNING id');
         $catStmt->execute(['Test Category ' . time()]);
         $catId = $catStmt->fetch()['id'];
 
-        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content, category_id) VALUES (?, ?, ?) RETURNING id");
+        $stmt = $this->pdo->prepare('INSERT INTO blogs (title, content, category_id) VALUES (?, ?, ?) RETURNING id');
         $stmt->execute(['Test Blog ' . time(), 'Test content for portfolio', $catId]);
         $row = $stmt->fetch();
         $this->assertNotEmpty($row['id']);
         $this->assertGreaterThan(0, $row['id']);
         // Cleanup
-        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$row['id']]);
-        $this->pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$catId]);
+        $this->pdo->prepare('DELETE FROM blogs WHERE id = ?')->execute([$row['id']]);
+        $this->pdo->prepare('DELETE FROM categories WHERE id = ?')->execute([$catId]);
     }
 
     public function testReadBlog()
     {
         // Create
-        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content) VALUES (?, ?) RETURNING id");
+        $stmt = $this->pdo->prepare('INSERT INTO blogs (title, content) VALUES (?, ?) RETURNING id');
         $stmt->execute(['Read Test', 'Content here']);
         $id = $stmt->fetch()['id'];
 
         // Read
-        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE id = ?");
+        $stmt = $this->pdo->prepare('SELECT * FROM blogs WHERE id = ?');
         $stmt->execute([$id]);
         $blog = $stmt->fetch();
         $this->assertEquals('Read Test', $blog['title']);
         $this->assertEquals('Content here', $blog['content']);
 
         // Cleanup
-        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$id]);
+        $this->pdo->prepare('DELETE FROM blogs WHERE id = ?')->execute([$id]);
     }
 
     public function testUpdateBlog()
     {
         // Create
-        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content) VALUES (?, ?) RETURNING id");
+        $stmt = $this->pdo->prepare('INSERT INTO blogs (title, content) VALUES (?, ?) RETURNING id');
         $stmt->execute(['Update Test', 'Original content']);
         $id = $stmt->fetch()['id'];
 
         // Update
-        $stmt = $this->pdo->prepare("UPDATE blogs SET title = ? WHERE id = ?");
+        $stmt = $this->pdo->prepare('UPDATE blogs SET title = ? WHERE id = ?');
         $stmt->execute(['Updated Title', $id]);
 
         // Verify
-        $stmt = $this->pdo->prepare("SELECT title FROM blogs WHERE id = ?");
+        $stmt = $this->pdo->prepare('SELECT title FROM blogs WHERE id = ?');
         $stmt->execute([$id]);
         $this->assertEquals('Updated Title', $stmt->fetch()['title']);
 
         // Cleanup
-        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$id]);
+        $this->pdo->prepare('DELETE FROM blogs WHERE id = ?')->execute([$id]);
     }
 
     public function testDeleteBlog()
     {
         // Create
-        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content) VALUES (?, ?) RETURNING id");
+        $stmt = $this->pdo->prepare('INSERT INTO blogs (title, content) VALUES (?, ?) RETURNING id');
         $stmt->execute(['Delete Test', 'To be deleted']);
         $id = $stmt->fetch()['id'];
 
         // Delete
-        $stmt = $this->pdo->prepare("DELETE FROM blogs WHERE id = ?");
+        $stmt = $this->pdo->prepare('DELETE FROM blogs WHERE id = ?');
         $stmt->execute([$id]);
 
         // Verify
-        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE id = ?");
+        $stmt = $this->pdo->prepare('SELECT * FROM blogs WHERE id = ?');
         $stmt->execute([$id]);
         $this->assertFalse($stmt->fetch());
     }
@@ -439,12 +445,12 @@ class BlogTest extends TestCase
         // PostgreSQL VARCHAR(255) would reject this
         // We test that the schema enforces it
         try {
-            $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content) VALUES (?, ?)");
+            $stmt = $this->pdo->prepare('INSERT INTO blogs (title, content) VALUES (?, ?)');
             $stmt->execute([$longTitle, 'test']);
             // If it succeeded, clean up and note it
             $this->pdo->exec("DELETE FROM blogs WHERE title = '" . $longTitle . "'");
             // Schema might not have length constraint — that's a finding
-            $this->addWarning('Blog title column may lack VARCHAR(255) constraint');
+            $this->markTestIncomplete('Blog title column may lack VARCHAR(255) constraint');
         } catch (PDOException $e) {
             // Expected — column has length constraint
             $this->assertStringContainsString('value too long', $e->getMessage());
@@ -485,7 +491,7 @@ class BlogTest extends TestCase
                 'method' => 'POST',
                 'header' => 'Content-Type: application/json',
                 'content' => json_encode(['title' => 'test', 'content' => 'test']),
-            ]
+            ],
         ]);
         $result = @file_get_contents('http://localhost/api/index.php?action=blogs', false, $ctx);
         if ($result === false) {
@@ -516,18 +522,18 @@ class BlogTest extends TestCase
 
     public function testCreateCategory()
     {
-        $stmt = $this->pdo->prepare("INSERT INTO categories (name) VALUES (?) RETURNING id");
+        $stmt = $this->pdo->prepare('INSERT INTO categories (name) VALUES (?) RETURNING id');
         $stmt->execute(['Test Category ' . time()]);
         $row = $stmt->fetch();
         $this->assertGreaterThan(0, $row['id']);
         // Cleanup
-        $this->pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$row['id']]);
+        $this->pdo->prepare('DELETE FROM categories WHERE id = ?')->execute([$row['id']]);
     }
 
     public function testCategoryUniqueConstraint()
     {
         $name = 'Unique Test ' . microtime(true);
-        $stmt = $this->pdo->prepare("INSERT INTO categories (name) VALUES (?)");
+        $stmt = $this->pdo->prepare('INSERT INTO categories (name) VALUES (?)');
         $stmt->execute([$name]);
 
         // Verify unique constraint exists by checking pg_constraint
@@ -535,7 +541,7 @@ class BlogTest extends TestCase
         $this->assertNotEmpty($r->fetch(), 'categories table should have a unique constraint');
 
         // Cleanup
-        $this->pdo->prepare("DELETE FROM categories WHERE name = ?")->execute([$name]);
+        $this->pdo->prepare('DELETE FROM categories WHERE name = ?')->execute([$name]);
     }
 
     // ==========================================
@@ -564,7 +570,7 @@ class BlogTest extends TestCase
 
     public function testLimitOffsetQuery()
     {
-        $stmt = $this->pdo->prepare("SELECT id FROM blogs ORDER BY id DESC LIMIT ? OFFSET ?");
+        $stmt = $this->pdo->prepare('SELECT id FROM blogs ORDER BY id DESC LIMIT ? OFFSET ?');
         $stmt->execute([5, 0]);
         $results = $stmt->fetchAll();
         $this->assertIsArray($results);
@@ -577,23 +583,22 @@ class BlogTest extends TestCase
 
     public function testCategoryIdCasting()
     {
-        $input = "1 OR 1=1";
+        $input = '1 OR 1=1';
         $casted = (int)$input;
-        $this->assertEquals(1, $casted);
-        $this->assertIsInt($casted);
+        $this->assertSame(1, $casted);
     }
 
     public function testPageCasting()
     {
-        $input = "5; DROP TABLE blogs";
+        $input = '5; DROP TABLE blogs';
         $casted = max(1, (int)$input);
         $this->assertEquals(5, $casted);
     }
 
     public function testTrimInput()
     {
-        $input = "  Hello World  ";
-        $this->assertEquals("Hello World", trim($input));
+        $input = '  Hello World  ';
+        $this->assertEquals('Hello World', trim($input));
     }
 
     public function testJsonDecode()
@@ -612,44 +617,44 @@ class BlogTest extends TestCase
     public function testFullBlogLifecycle()
     {
         // 1. Create category
-        $stmt = $this->pdo->prepare("INSERT INTO categories (name) VALUES (?) RETURNING id");
+        $stmt = $this->pdo->prepare('INSERT INTO categories (name) VALUES (?) RETURNING id');
         $stmt->execute(['Lifecycle Test Category']);
         $catId = $stmt->fetch()['id'];
 
         // 2. Create blog in category
-        $stmt = $this->pdo->prepare("INSERT INTO blogs (title, content, category_id) VALUES (?, ?, ?) RETURNING id");
+        $stmt = $this->pdo->prepare('INSERT INTO blogs (title, content, category_id) VALUES (?, ?, ?) RETURNING id');
         $stmt->execute(['Lifecycle Test Blog', 'Full lifecycle test content', $catId]);
         $blogId = $stmt->fetch()['id'];
 
         // 3. Read blog with category join
-        $stmt = $this->pdo->prepare("
+        $stmt = $this->pdo->prepare('
             SELECT b.*, c.name AS category_name 
             FROM blogs b 
             LEFT JOIN categories c ON b.category_id = c.id 
             WHERE b.id = ?
-        ");
+        ');
         $stmt->execute([$blogId]);
         $blog = $stmt->fetch();
         $this->assertEquals('Lifecycle Test Blog', $blog['title']);
         $this->assertEquals('Lifecycle Test Category', $blog['category_name']);
 
         // 4. Update blog
-        $stmt = $this->pdo->prepare("UPDATE blogs SET title = ? WHERE id = ?");
+        $stmt = $this->pdo->prepare('UPDATE blogs SET title = ? WHERE id = ?');
         $stmt->execute(['Updated Lifecycle Blog', $blogId]);
 
         // 5. Verify update
-        $stmt = $this->pdo->prepare("SELECT title FROM blogs WHERE id = ?");
+        $stmt = $this->pdo->prepare('SELECT title FROM blogs WHERE id = ?');
         $stmt->execute([$blogId]);
         $this->assertEquals('Updated Lifecycle Blog', $stmt->fetch()['title']);
 
         // 6. Delete blog
-        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$blogId]);
+        $this->pdo->prepare('DELETE FROM blogs WHERE id = ?')->execute([$blogId]);
 
         // 7. Delete category
-        $this->pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$catId]);
+        $this->pdo->prepare('DELETE FROM categories WHERE id = ?')->execute([$catId]);
 
         // 8. Verify cleanup
-        $stmt = $this->pdo->prepare("SELECT * FROM blogs WHERE id = ?");
+        $stmt = $this->pdo->prepare('SELECT * FROM blogs WHERE id = ?');
         $stmt->execute([$blogId]);
         $this->assertFalse($stmt->fetch());
     }
@@ -686,7 +691,7 @@ class BlogTest extends TestCase
         $magic = new \App\Auth\MagicLink('test-single-use-key');
 
         // Clean up any leftovers from a previous run
-        $this->pdo->exec("DELETE FROM magic_link_uses");
+        $this->pdo->exec('DELETE FROM magic_link_uses');
 
         $token = $magic->create('single-use@example.com', 600);
         $this->assertSame('single-use@example.com', $magic->verify($token));
@@ -700,7 +705,7 @@ class BlogTest extends TestCase
         $this->assertEquals(1, (int)$stmt->fetch()['c']);
 
         // Cleanup
-        $this->pdo->exec("DELETE FROM magic_link_uses");
+        $this->pdo->exec('DELETE FROM magic_link_uses');
     }
 
     public function testMagicLinkVerifyRejectsTamperedToken()
@@ -798,23 +803,23 @@ class BlogTest extends TestCase
         $inviteId = (int)$this->pdo->lastInsertId();
 
         // It must be pending (not accepted/rejected)
-        $stmt = $this->pdo->prepare("SELECT role FROM invitations WHERE id = ? AND accepted_at IS NULL AND rejected_at IS NULL");
+        $stmt = $this->pdo->prepare('SELECT role FROM invitations WHERE id = ? AND accepted_at IS NULL AND rejected_at IS NULL');
         $stmt->execute([$inviteId]);
         $pending = $stmt->fetch();
         $this->assertNotEmpty($pending, 'new invitation should be pending');
         $this->assertEquals('editor', $pending['role']);
 
         // Accept it
-        $stmt = $this->pdo->prepare("UPDATE invitations SET accepted_at = NOW() WHERE id = ?");
+        $stmt = $this->pdo->prepare('UPDATE invitations SET accepted_at = NOW() WHERE id = ?');
         $stmt->execute([$inviteId]);
-        $stmt = $this->pdo->prepare("SELECT accepted_at, rejected_at FROM invitations WHERE id = ?");
+        $stmt = $this->pdo->prepare('SELECT accepted_at, rejected_at FROM invitations WHERE id = ?');
         $stmt->execute([$inviteId]);
         $row = $stmt->fetch();
         $this->assertNotNull($row['accepted_at'], 'accepted_at should be set on accept');
         $this->assertNull($row['rejected_at']);
 
         // Cleanup
-        $this->pdo->prepare("DELETE FROM invitations WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare('DELETE FROM invitations WHERE email = ?')->execute([$email]);
     }
 
     public function testInvitationRejectionIsDistinctFromAcceptance()
@@ -824,16 +829,16 @@ class BlogTest extends TestCase
         $stmt->execute([$email, bin2hex(random_bytes(32)), date('Y-m-d H:i:s', time() + 3600)]);
         $inviteId = (int)$this->pdo->lastInsertId();
 
-        $stmt = $this->pdo->prepare("UPDATE invitations SET rejected_at = NOW() WHERE id = ?");
+        $stmt = $this->pdo->prepare('UPDATE invitations SET rejected_at = NOW() WHERE id = ?');
         $stmt->execute([$inviteId]);
 
-        $stmt = $this->pdo->prepare("SELECT accepted_at, rejected_at FROM invitations WHERE id = ?");
+        $stmt = $this->pdo->prepare('SELECT accepted_at, rejected_at FROM invitations WHERE id = ?');
         $stmt->execute([$inviteId]);
         $row = $stmt->fetch();
         $this->assertNotNull($row['rejected_at'], 'rejected_at should be set on reject');
         $this->assertNull($row['accepted_at'], 'accepted_at must stay NULL on reject');
 
-        $this->pdo->prepare("DELETE FROM invitations WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare('DELETE FROM invitations WHERE email = ?')->execute([$email]);
     }
 
     public function testInvitationEmailIsUnique()
@@ -845,11 +850,11 @@ class BlogTest extends TestCase
         $this->pdo->prepare("INSERT INTO invitations (email, token, role, expires_at) VALUES (?, ?, 'editor', ?) ON CONFLICT (email) DO UPDATE SET token = EXCLUDED.token")
             ->execute([$email, 'b', date('Y-m-d H:i:s', time() + 3600)]);
 
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM invitations WHERE email = ?");
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM invitations WHERE email = ?');
         $stmt->execute([$email]);
         $this->assertEquals(1, (int)$stmt->fetch()['count']);
 
-        $this->pdo->prepare("DELETE FROM invitations WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare('DELETE FROM invitations WHERE email = ?')->execute([$email]);
     }
 
     public function testProvisionCreatesAccountForNewEmail()
@@ -861,30 +866,30 @@ class BlogTest extends TestCase
         $this->assertEquals($email, $user['email']);
         $this->assertEquals('editor', $user['role']);
 
-        $stmt = $this->pdo->prepare("SELECT username, email, role FROM admins WHERE LOWER(email) = ?");
+        $stmt = $this->pdo->prepare('SELECT username, email, role FROM admins WHERE LOWER(email) = ?');
         $stmt->execute([$email]);
         $row = $stmt->fetch();
         $this->assertNotEmpty($row, 'account should exist in admins');
         $this->assertEquals('editor', $row['role']);
 
-        $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare('DELETE FROM admins WHERE email = ?')->execute([$email]);
     }
 
     public function testProvisionReturnsExistingAccountWithoutDuplicating()
     {
         $email = 'provision-existing-' . bin2hex(random_bytes(3)) . '@example.com';
-        $this->pdo->prepare("INSERT INTO admins (username, email, role) VALUES (?, ?, ?)")
+        $this->pdo->prepare('INSERT INTO admins (username, email, role) VALUES (?, ?, ?)')
             ->execute(['prov-test-' . substr($email, 0, 8), $email, 'viewer']);
 
         $user = \App\Models\Invitation::provision($email, 'editor');
         $this->assertNotNull($user, 'provision should return the existing user');
         $this->assertEquals('viewer', $user['role'], 'existing role must not be overwritten');
 
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM admins WHERE email = ?");
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM admins WHERE email = ?');
         $stmt->execute([$email]);
         $this->assertEquals(1, (int)$stmt->fetch()['count']);
 
-        $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute([$email]);
+        $this->pdo->prepare('DELETE FROM admins WHERE email = ?')->execute([$email]);
     }
 
     public function testProvisionDerivesUniqueUsername()
@@ -892,7 +897,7 @@ class BlogTest extends TestCase
         $email = 'prov-' . bin2hex(random_bytes(3)) . '@example.com';
         $base = explode('@', $email)[0];
         // Pre-create the same base username so the second account needs a suffix.
-        $this->pdo->prepare("INSERT INTO admins (username, email, role) VALUES (?, ?, ?)")
+        $this->pdo->prepare('INSERT INTO admins (username, email, role) VALUES (?, ?, ?)')
             ->execute([$base, 'other-' . $email, 'viewer']);
 
         $user = \App\Models\Invitation::provision($email, 'editor');
@@ -900,13 +905,13 @@ class BlogTest extends TestCase
         $this->assertNotEquals($base, $user['username'], 'username should get a numeric suffix when taken');
         $this->assertStringStartsWith($base, $user['username']);
 
-        $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute([$email]);
-        $this->pdo->prepare("DELETE FROM admins WHERE email = ?")->execute(['other-' . $email]);
+        $this->pdo->prepare('DELETE FROM admins WHERE email = ?')->execute([$email]);
+        $this->pdo->prepare('DELETE FROM admins WHERE email = ?')->execute(['other-' . $email]);
     }
 
     public function testRendererEscapesAuthorHtml()
     {
-        $html = renderPostContent("Hello <script>alert(1)</script> world");
+        $html = renderPostContent('Hello <script>alert(1)</script> world');
         $this->assertStringNotContainsString('<script>', $html);
         $this->assertStringContainsString('&lt;script&gt;', $html);
     }
@@ -964,7 +969,7 @@ class BlogTest extends TestCase
 
     public function testCommentsTableExists()
     {
-        $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM comments");
+        $stmt = $this->pdo->query('SELECT COUNT(*) AS count FROM comments');
         $row = $stmt->fetch();
         $this->assertGreaterThanOrEqual(0, $row['count']);
     }
@@ -984,7 +989,7 @@ class BlogTest extends TestCase
 
     public function testSubscribersTableExists()
     {
-        $stmt = $this->pdo->query("SELECT COUNT(*) AS count FROM subscribers");
+        $stmt = $this->pdo->query('SELECT COUNT(*) AS count FROM subscribers');
         $row = $stmt->fetch();
         $this->assertGreaterThanOrEqual(0, $row['count']);
     }
@@ -1007,7 +1012,7 @@ class BlogTest extends TestCase
         $commentId = \App\Models\Comment::create($blogId, 'Test Reader', 'reader@example.com', 'A friendly comment.');
         $this->assertNotNull($commentId);
 
-        $stmt = $this->pdo->prepare("SELECT status FROM comments WHERE id = ?");
+        $stmt = $this->pdo->prepare('SELECT status FROM comments WHERE id = ?');
         $stmt->execute([$commentId]);
         $this->assertEquals('pending', $stmt->fetch()['status']);
 
@@ -1017,7 +1022,7 @@ class BlogTest extends TestCase
         $this->assertTrue(\App\Models\Comment::delete($commentId));
         $this->assertCount(0, \App\Models\Comment::approvedFor($blogId));
 
-        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$blogId]);
+        $this->pdo->prepare('DELETE FROM blogs WHERE id = ?')->execute([$blogId]);
     }
 
     public function testCommentRejectsInvalidInput()
@@ -1028,7 +1033,7 @@ class BlogTest extends TestCase
         $this->assertNull(\App\Models\Comment::create($blogId, '', '', ''));
         $this->assertNull(\App\Models\Comment::create($blogId, 'Name', 'not-an-email', 'ok'));
 
-        $this->pdo->prepare("DELETE FROM blogs WHERE id = ?")->execute([$blogId]);
+        $this->pdo->prepare('DELETE FROM blogs WHERE id = ?')->execute([$blogId]);
     }
 
     // ==========================================
@@ -1043,14 +1048,14 @@ class BlogTest extends TestCase
         $dup = \App\Models\Subscriber::subscribe('newsletter-test@example.com');
         $this->assertSame('exists', $dup['status']);
 
-        $stmt = $this->pdo->prepare("SELECT token FROM subscribers WHERE email = ?");
+        $stmt = $this->pdo->prepare('SELECT token FROM subscribers WHERE email = ?');
         $stmt->execute(['newsletter-test@example.com']);
         $token = $stmt->fetchColumn();
         $this->assertNotEmpty($token);
 
         $this->assertTrue(\App\Models\Subscriber::removeByToken((string)$token));
 
-        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM subscribers WHERE email = ?");
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM subscribers WHERE email = ?');
         $stmt->execute(['newsletter-test@example.com']);
         $this->assertSame(0, (int)$stmt->fetchColumn());
     }
